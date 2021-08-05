@@ -151,7 +151,7 @@ function ob_callback( $contents ) {
 
 		// TODO: Add custom headers probably.
 		// TODO: REMOVE!
-		'key' => $key,
+		// 'key' => $key,
 	];
 
 	set( $key, $cache );
