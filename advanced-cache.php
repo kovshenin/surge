@@ -179,8 +179,6 @@ function ob_callback( $contents ) {
 	];
 
 	set( $key, $cache );
-
-	header( 'X-Cache: miss' );
 	return $contents;
 }
 
@@ -192,6 +190,8 @@ function ob_callback( $contents ) {
 function serve() {
 	$key = key();
 	$cache = get( $key );
+
+	header( 'X-Cache: miss' );
 
 	if ( ! $cache ) {
 		return;
