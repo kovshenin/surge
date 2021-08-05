@@ -79,7 +79,7 @@ function get( $key ) {
 	}
 
 	$cache = $meta;
-	$cache['filename'] = $cache_dir . $cache_key . '.html'; // TODO: not .html.
+	$cache['filename'] = $cache_dir . $cache_key . '.data';
 	return $cache;
 }
 
@@ -111,7 +111,7 @@ function set( $key, $value ) {
 		return false;
 	}
 
-	file_put_contents( $cache_dir . $cache_key . '.html', $contents, LOCK_EX );
+	file_put_contents( $cache_dir . $cache_key . '.data', $contents, LOCK_EX );
 
 	// Write the metadata and release the lock.
 	fwrite( $f, $meta );
