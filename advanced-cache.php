@@ -133,12 +133,36 @@ function delete( $key ) {
  */
 function ob_callback( $contents ) {
 	$key = key();
-
-	// TODO: Check if request is cacheable.
+	$skip = false;
 
 	foreach ( headers_list() as $header ) {
 		list( $name, $value ) = array_map( 'trim', explode( ':', $header, 2 ) );
 		$headers[ $name ] = $value;
+
+		if ( strtolower( $name ) == 'set-cookie' ) {
+			$skip = true;
+			break;
+		}
+
+		if ( strtolower( $name ) == 'cache-control' ) {
+			if ( stripos( $value, 'no-cache' ) !== false || stripos( $value, 'max-age=0' ) !== false ) {
+				$skip = true;
+				break;
+			}
+		}
+	}
+
+	if ( ! in_array( strtoupper( $_SERVER['REQUEST_METHOD'] ), [ 'GET', 'HEAD' ] ) ) {
+		$skip = true;
+	}
+
+	if ( ! in_array( http_response_code(), [ 200, 301, 302, 404 ] ) ) {
+		$skip = true;
+	}
+
+	if ( $skip ) {
+		header( 'X-Cache: skip' );
+		return $contents;
 	}
 
 	$cache = [
