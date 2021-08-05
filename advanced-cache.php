@@ -1,6 +1,46 @@
 <?php
 namespace Koddrio\Cache;
 
+\add_filter( 'the_posts', function( $posts ) {
+	array_map( function( $ID ) { flag( 'post:' . $ID ); },
+		\wp_list_pluck( $posts, 'ID' ) );
+
+	return $posts;
+} );
+
+\add_action( 'shutdown', function() {
+	$expire = expire();
+	if ( empty( $expire ) ) {
+		return;
+	}
+
+	$flags = null;
+	$path = WP_CONTENT_DIR . '/cache/koddrio/flags.json';
+	if ( file_exists( $path ) ) {
+		$flags = json_decode( file_get_contents( $path ), true );
+	}
+
+	if ( ! $flags ) {
+		$flags = [];
+	}
+
+	foreach ( $expire as $flag ) {
+		$flags[ $flag ] = time();
+	}
+
+	file_put_contents( $path, json_encode( $flags ) );
+} );
+
+\add_action( 'clean_post_cache', function( $post_id, $post ) {
+	if ( wp_is_post_revision( $post ) ) {
+		return;
+	}
+
+	expire( 'post:' . $post_id );
+	expire( 'home' );
+	expire( 'feed' );
+}, 10, 2 );
+
 /**
  * Caching configuration settings.
  *
@@ -120,6 +160,34 @@ function set( $key, $value ) {
 	return true;
 }
 
+function flag( $flag = null ) {
+	static $flags;
+
+	if ( ! isset( $flags ) ) {
+		$flags = [];
+	}
+
+	if ( $flag ) {
+		$flags[] = $flag;
+	}
+
+	return $flags;
+}
+
+function expire( $flag = null ) {
+	static $expire;
+
+	if ( ! isset( $expire ) ) {
+		$expire = [];
+	}
+
+	if ( $flag ) {
+		$expire[] = $flag;
+	}
+
+	return $expire;
+}
+
 function delete( $key ) {
 
 }
@@ -156,7 +224,7 @@ function ob_callback( $contents ) {
 		$skip = true;
 	}
 
-	if ( ! in_array( http_response_code(), [ 200, 301, 302, 404 ] ) ) {
+	if ( ! in_array( http_response_code(), [ 200, 301, 302, 304, 404 ] ) ) {
 		$skip = true;
 	}
 
@@ -172,6 +240,7 @@ function ob_callback( $contents ) {
 		'contents' => $contents,
 		'created' => time(),
 		'expires' => time() + config( 'ttl' ),
+		'flags' => flag(),
 
 		// TODO: Add custom headers probably.
 		// TODO: REMOVE!
@@ -200,6 +269,21 @@ function serve() {
 	if ( $cache['expires'] < time() ) {
 		header( 'X-Cache: expired' );
 		return;
+	}
+
+	$flags = null;
+	$path = WP_CONTENT_DIR . '/cache/koddrio/flags.json';
+	if ( file_exists( $path ) ) {
+		$flags = json_decode( file_get_contents( $path ), true );
+	}
+
+	if ( $flags && $cache['flags'] ) {
+		foreach ( $flags as $flag => $timestamp ) {
+			if ( in_array( $flag, $cache['flags'] ) && $timestamp > $cache['created'] ) {
+				header( 'X-Cache: expired' );
+				return;
+			}
+		}
 	}
 
 	// Set the HTTP response code and send headers.
