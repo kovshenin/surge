@@ -62,6 +62,6 @@ foreach ( $meta['headers'] as $name => $value ) {
 }
 
 header( 'X-Cache: hit' );
-header( 'X-Flags: ' . implode( ', ', $meta['flags'] ) );
+// header( 'X-Flags: ' . implode( ', ', $meta['flags'] ) );
 readfile( CACHE_DIR . "/{$level}/{$cache_key}.data" );
 die();
