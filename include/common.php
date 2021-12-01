@@ -20,7 +20,7 @@ const CACHE_DIR = WP_CONTENT_DIR . '/cache/surge';
  */
 function config( $key ) {
 	return [
-		'ttl' => 5,
+		'ttl' => 600,
 		'ignore_cookies' => [ 'wordpress_test_cookie' ],
 		'ignore_query_vars' => [ 'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content' ],
 	][ $key ];
