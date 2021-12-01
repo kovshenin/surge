@@ -21,7 +21,6 @@ if ( defined( 'WP_CACHE' ) && WP_CACHE ) {
 
 // Load more files later when necessary.
 add_action( 'plugins_loaded', function() {
-	// delete_option( 'surge_installed' );
 	if ( false === get_option( 'surge_installed', false ) ) {
 		if ( add_option( 'surge_installed', 0 ) ) {
 			require_once( __DIR__ . '/include/install.php' );
@@ -40,4 +39,9 @@ add_action( 'shutdown', function() {
 	if ( ! wp_next_scheduled( 'surge_delete_expired' ) ) {
 		wp_schedule_event( time(), 'hourly', 'surge_delete_expired' );
 	}
+} );
+
+// Re-install on activation
+register_activation_hook( __FILE__, function() {
+	delete_option( 'surge_installed' );
 } );

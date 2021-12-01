@@ -7,11 +7,13 @@
 
 namespace Surge;
 
+include_once( __DIR__ . '/common.php' );
+
 // Runs in a CLI/Cron context, deletes expired cache entries.
 add_action( 'surge_delete_expired', function() {
 	$cache_dir = CACHE_DIR;
 	$start = microtime( true );
-	$keys = [];
+	$files = [];
 	$deleted = 0;
 	$time = time();
 
@@ -21,7 +23,7 @@ add_action( 'surge_delete_expired', function() {
 			continue;
 		}
 
-		if ( $level == 'flags.json' ) {
+		if ( $level == 'flags.json.php' ) {
 			continue;
 		}
 
@@ -31,42 +33,40 @@ add_action( 'surge_delete_expired', function() {
 				continue;
 			}
 
-			if ( substr( $item, -5 ) != '.meta' ) {
+			if ( substr( $item, -4 ) != '.php' ) {
 				continue;
 			}
 
-			$cache_key = substr( $item, 0, -5 );
-			$keys[] = $cache_key;
+			$files[] = "{$cache_dir}/{$level}/{$item}";
 		}
 	}
 
-	foreach ( $keys as $cache_key ) {
-		$level = substr( $cache_key, -2 );
+	foreach ( $files as $filename ) {
+		$stat = stat( $filename );
 
-		$f = fopen( "{$cache_dir}/{$level}/{$cache_key}.meta", 'r' );
-		if ( ! flock( $f, LOCK_EX ) ) {
-			// Could not acquire a lock.
-			fclose( $f );
+		// Skip files modified in the last minute.
+		if ( $stat['mtime'] + MINUTE_IN_SECONDS > $time ) {
 			continue;
 		}
 
-		$contents = '';
-		while ( ! feof( $f ) ) {
-			$contents .= fread( $f, 8192 );
+		// Empty file.
+		if ( $stat['size'] < 1 ) {
+			unlink( $filename );
+			$deleted++;
+			continue;
 		}
 
-		$meta = json_decode( $contents, true );
+		$f = fopen( $filename, 'rb' );
+		$meta = read_metadata( $f );
+		fclose( $f );
 
 		// This cache entry is still valid.
-		if ( $meta && ! empty( $meta['expries'] ) && $meta['expires'] > $time ) {
-			fclose( $f );
+		if ( $meta && ! empty( $meta['expires'] ) && $meta['expires'] > $time ) {
 			continue;
 		}
 
-		// Delete the cache entry and release the lock.
-		unlink( "{$cache_dir}/{$level}/{$cache_key}.data" );
-		unlink( "{$cache_dir}/{$level}/{$cache_key}.meta" );
-		fclose( $f );
+		// Delete the cache entry
+		unlink( $filename );
 		$deleted++;
 	}
 
@@ -74,7 +74,7 @@ add_action( 'surge_delete_expired', function() {
 	$elapsed = $end - $start;
 
 	if ( defined( 'WP_CLI' ) && WP_CLI && class_exists( '\WP_CLI' ) ) {
-		\WP_CLI::success( sprintf( 'Deleted %d/%d keys in %.4f seconds',
-			$deleted, count( $keys ), $elapsed ) );
+		\WP_CLI::success( sprintf( 'Deleted %d/%d files in %.4f seconds',
+			$deleted, count( $files ), $elapsed ) );
 	}
 } );

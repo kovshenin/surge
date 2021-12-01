@@ -68,9 +68,11 @@ add_action( 'shutdown', function() {
 	}
 
 	$flags = null;
-	$path = CACHE_DIR . '/flags.json';
+	$path = CACHE_DIR . '/flags.json.php';
 	if ( file_exists( $path ) ) {
-		$flags = json_decode( file_get_contents( $path ), true );
+		// TODO: Fix race condition, two requests could be modifying flags simultaneously.
+		$flags = substr( file_get_contents( $path ), strlen( '<?php exit; ?>' ) );
+		$flags = json_decode( $flags, true );
 	}
 
 	if ( ! $flags ) {
@@ -81,7 +83,11 @@ add_action( 'shutdown', function() {
 		$flags[ $flag ] = time();
 	}
 
-	file_put_contents( $path, json_encode( $flags ), LOCK_EX );
+	if ( ! wp_mkdir_p( CACHE_DIR ) ) {
+		return $contents;
+	}
+
+	file_put_contents( $path, '<?php exit; ?>' . json_encode( $flags ), LOCK_EX ); // TODO: This lock doesn't really help
 } );
 
 $expire_feeds = function() { expire( 'feed:' . get_current_blog_id() ); };

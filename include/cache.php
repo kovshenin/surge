@@ -67,19 +67,29 @@ $ob_callback = function( $contents ) {
 		return $contents;
 	}
 
-	// Open the meta file and acquire a lock.
-	$f = fopen( CACHE_DIR . "/{$level}/{$cache_key}.meta", 'w' );
-	if ( ! flock( $f, LOCK_EX ) ) {
-		fclose( $f );
+	// Open a new cache file.
+	$hash = wp_generate_password( 6, false );
+	$f = fopen( CACHE_DIR . "/{$level}/{$cache_key}.{$hash}.php", 'xb' );
+
+	// Could not create file.
+	if ( false === $f ) {
 		return $contents;
 	}
 
-	// TODO: Might not need LOCK_EX here since we're already holding an exclusive lock to .meta
-	file_put_contents( CACHE_DIR . "/{$level}/{$cache_key}.data", $contents, LOCK_EX );
-
-	// Write the metadata and release the lock.
+	fwrite( $f, '<?php exit; ?>' );
+	fwrite( $f, pack( 'L', strlen( $meta ) ) );
 	fwrite( $f, $meta );
-	fclose( $f ); // Releases the lock.
+	fwrite( $f, $contents );
+
+	// Close the file.
+	fclose( $f );
+
+	// Atomic (hopefully) rename.
+	if ( ! rename( CACHE_DIR . "/{$level}/{$cache_key}.{$hash}.php",
+		CACHE_DIR . "/{$level}/{$cache_key}.php" )
+	) {
+		unlink( CACHE_DIR . "/{$level}/{$cache_key}.{$hash}.php" );
+	}
 
 	return $contents;
 };

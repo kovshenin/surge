@@ -107,3 +107,30 @@ function expire( $flag = null ) {
 
 	return $expire;
 }
+
+/**
+ * Read metadata from a file resource.
+ *
+ * @param resource $f A file resource opened with fopen().
+ *
+ * @return null|array The decoded cache metadata or null.
+ */
+function read_metadata( $f ) {
+	// Skip security header.
+	fread( $f, strlen( '<?php exit; ?>' ) );
+
+	// Read the metadata length.
+	$bytes = fread( $f, 4 );
+	if ( ! $bytes ) {
+		return;
+	}
+
+	$data = unpack( 'Llength', $bytes );
+	if ( empty( $data['length'] ) ) {
+		return;
+	}
+
+	$bytes = fread( $f, $data['length'] );
+	$meta = json_decode( $bytes, true );
+	return $meta;
+}

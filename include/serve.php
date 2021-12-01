@@ -20,28 +20,33 @@ header( 'X-Cache: miss' );
 $cache_key = md5( json_encode( key() ) );
 $level = substr( $cache_key, -2 );
 
-$meta_filename = CACHE_DIR . "/{$level}/{$cache_key}.meta";
-if ( ! file_exists( $meta_filename ) ) {
+$filename = CACHE_DIR . "/{$level}/{$cache_key}.php";
+if ( ! file_exists( $filename ) ) {
 	return;
 }
 
-$meta = json_decode( file_get_contents( $meta_filename ), true );
+$f = fopen( $filename, 'rb' );
+$meta = read_metadata( $f );
 if ( ! $meta ) {
+	fclose( $f );
 	return;
 }
 
 if ( $meta['expires'] < time() ) {
 	header( 'X-Cache: expired' );
+	fclose( $f );
 	return;
 }
 
 $flags = null;
-if ( file_exists( CACHE_DIR . '/flags.json' ) ) {
-	$flags = json_decode( file_get_contents( CACHE_DIR . '/flags.json' ), true );
+if ( file_exists( CACHE_DIR . '/flags.json.php' ) ) {
+	$flags = substr( file_get_contents( CACHE_DIR . '/flags.json.php' ), strlen( '<?php exit; ?>' ) );
+	$flags = json_decode( $flags, true );
 }
 
 if ( ! empty( $flags['*'] ) && $flags['*'] > $meta['created'] ) {
 	header( 'X-Cache: expired' );
+	fclose( $f );
 	return;
 }
 
@@ -49,6 +54,7 @@ if ( $flags && ! empty( $meta['flags'] ) ) {
 	foreach ( $flags as $flag => $timestamp ) {
 		if ( in_array( $flag, $meta['flags'] ) && $timestamp > $meta['created'] ) {
 			header( 'X-Cache: expired' );
+			fclose( $f );
 			return;
 		}
 	}
@@ -63,5 +69,6 @@ foreach ( $meta['headers'] as $name => $value ) {
 
 header( 'X-Cache: hit' );
 // header( 'X-Flags: ' . implode( ', ', $meta['flags'] ) );
-readfile( CACHE_DIR . "/{$level}/{$cache_key}.data" );
+fpassthru( $f ); // Pass the remaining bytes to the output.
+fclose( $f );
 die();
