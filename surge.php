@@ -34,6 +34,18 @@ add_action( 'plugins_loaded', function() {
 	include_once( __DIR__ . '/include/invalidate.php' );
 } );
 
+// Site Health events
+add_filter( 'site_status_tests', function( $tests ) {
+	include_once( __DIR__ . '/include/health.php' );
+
+	$tests['direct']['surge'] = [
+		'label' => 'Caching Test',
+		'test' => '\Surge\health_test',
+	];
+
+	return $tests;
+} );
+
 // Schedule cron events.
 add_action( 'shutdown', function() {
 	if ( ! wp_next_scheduled( 'surge_delete_expired' ) ) {

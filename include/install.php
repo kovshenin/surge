@@ -10,6 +10,8 @@
 
 namespace Surge;
 
+include_once( __DIR__ . '/common.php' );
+
 // Remove old advanced-cache.php.
 if ( file_exists( WP_CONTENT_DIR . '/advanced-cache.php' ) ) {
 	unlink( WP_CONTENT_DIR . '/advanced-cache.php' );
@@ -21,6 +23,9 @@ if ( ! $ret ) {
 	update_option( 'surge_installed', 3 );
 	return;
 }
+
+// Create the cache directory
+wp_mkdir_p( CACHE_DIR );
 
 // Nothing to do if WP_CACHE is already on.
 if ( defined( 'WP_CACHE' ) && WP_CACHE ) {
