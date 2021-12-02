@@ -27,6 +27,10 @@ add_action( 'surge_delete_expired', function() {
 			continue;
 		}
 
+		if ( ! is_dir( "{$cache_dir}/{$level}" ) ) {
+			continue;
+		}
+
 		$items = scandir( "{$cache_dir}/{$level}" );
 		foreach ( $items as $item ) {
 			if ( $item == '.' || $item == '..' ) {
