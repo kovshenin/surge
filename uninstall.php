@@ -25,7 +25,6 @@ if ( file_exists( WP_CONTENT_DIR . '/advanced-cache.php' ) ) {
 function delete( $path ) {
 	if ( is_file( $path ) ) {
 		unlink( $path );
-		error_log( 'unlink: ' . $path );
 		return;
 	}
 
@@ -43,7 +42,6 @@ function delete( $path ) {
 	}
 
 	rmdir( $path );
-	error_log( 'rmdir: ' . $path );
 }
 
 delete( CACHE_DIR );

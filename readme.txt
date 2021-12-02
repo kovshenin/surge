@@ -22,7 +22,7 @@ automatically invalidated when your site is updated.
 
 In various load tests, Surge has shown to easily handle 1000-2500 requests per
 second at 100 concurrent, on a small single-core server with only 1 GB of RAM.
-That's over 70 times faster than an empty WordPress install.
+That's over 70 times faster than a stock WordPress install.
 
 == Installation ==
 
