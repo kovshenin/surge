@@ -13,33 +13,48 @@ Surge is a very simple and fast page caching plugin for WordPress.
 
 == Description ==
 
-Surge generates and serves static HTML files for your WordPress site, causing
-quicker requests and, faster load times and a shorter time to first byte (TTFB).
+Surge generates and serves static HTML files for your WordPress site, causing quicker requests and, faster load times and a shorter time to first byte (TTFB).
 
-Surge does not require configuration, and has no options. It works out of the box
-on any well-configured hosting platform. Cached files are stored on disk, and
-automatically invalidated when your site is updated.
+Surge does not require configuration, and has no options. It works out of the box on any well-configured hosting platform. Cached files are stored on disk, and automatically invalidated when your site is updated.
 
-In various load tests, Surge has shown to easily handle 1000-2500 requests per
-second at 100 concurrent, on a small single-core server with only 1 GB of RAM.
-That's over 70 times faster than a stock WordPress install.
+In various load tests, Surge has shown to easily handle 1000-2500 requests per second at 100 concurrent, on a small single-core server with only 1 GB of RAM. That's over 70 times faster than a stock WordPress install.
 
 == Installation ==
 
-1. Navigate to Plugins - Add New, find "Surge", hit Install, then Activate
-1. Enjoy
+Via the WordPress Dashboard: navigate to Plugins - Add New. In the search bar type "surge" and hit Enter. Find the Surge plugin in the search results, hit Install, then Activate.
+
+Manually: download the Surge plugin .zip file from WordPress.org. In your WordPress admin navigate to Plugins - Add New - Upload. Select the .zip file and hit Upload. Activate the plugin after upload is successful.
+
+Manually via FTP: download the Surge plugin .zip file from WordPress.org, extract the archive, make sure the directory is called "surge". Use your FTP/SFTP client to upload the "surge" directory to wp-content/plugins. Then activate the plugin in your WordPress admin from the Plugins section.
+
+Using WP-CLI: wp plugin install surge --activate
 
 == Frequently Asked Questions ==
 
+= Where is the plugin configuration screen? =
+
+There isn't one.
+
+= Is my cache working? =
+
+Visit the Site Health screen under Tools in your WordPress dashboard. Common caching errors, like installation problems, etc. will appear there. Otherwise, open your site in an Incognito window to see the cached version. You could also look for the "X-Cache" header in the server response.
+
+= Why am I getting cache misses? =
+
+Below are a few common reasons:
+
+* You are logged into your WordPress site
+* You have a unique cookie set in your browser
+* A unique query parameter will also cause a cache miss, except common marketing parameters, such as utm_campaign, etc.
+* Request methods outside of GET and HEAD are not cached
+
 = Can I exclude page X from being cached? =
 
-Of course. If you pass a "Cache-Control: no-cache" header (or max-age=0) the request
-will automatically be excluded from cache. Note that most WordPress plugins will
-already do this where necessary.
+Of course. If you pass a "Cache-Control: no-cache" header (or max-age=0) the request will automatically be excluded from cache. Note that most WordPress plugins will already do this where necessary.
 
 = How can I support Surge? =
 
-If you like Surge, consider giving us a [star on GitHub](https://github.com/kovshenin/surge).
+If you like Surge, consider giving us a [star on GitHub](https://github.com/kovshenin/surge) and a review on WordPress.org.
 
 == Changelog ==
 
