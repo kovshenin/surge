@@ -39,6 +39,10 @@ $ob_callback = function( $contents ) {
 		}
 	}
 
+	if ( ! empty( $_SERVER['HTTP_AUTHORIZATION'] ) ) {
+		$skip = true;
+	}
+
 	if ( ! in_array( strtoupper( $_SERVER['REQUEST_METHOD'] ), [ 'GET', 'HEAD' ] ) ) {
 		$skip = true;
 	}
