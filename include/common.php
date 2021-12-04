@@ -54,10 +54,35 @@ function key() {
 		return $cache_key;
 	}
 
-	$cookies = [];
-	$headers = [];
+	// Break the URL down.
+	$parsed = parse_url( 'http://example.org' . $_SERVER['REQUEST_URI'] );
+	$path = $parsed['path'];
+	$query = $parsed['query'] ?? '';
+	parse_str( $query, $query_vars );
+
+	// Ignore some query vars.
+	foreach ( $query_vars as $key => $value ) {
+		if ( in_array( $key, config( 'ignore_query_vars' ) ) ) {
+			unset( $query_vars[ $key ] );
+		}
+	}
+
+	$cache_key = [
+		'https' => $_SERVER['HTTPS'] ?? '',
+		'method' => strtoupper( $_SERVER['REQUEST_METHOD'] ) ?? '',
+		'host' => strtolower( $_SERVER['HTTP_HOST'] ?? '' ),
+		'path' => $path,
+		'query_vars' => $query_vars,
+		'cookies' => [],
+	];
+
+	// Return early if this request is anonymized.
+	if ( anonymize( $cache_key ) ) {
+		return $cache_key;
+	}
 
 	// Clean up and normalize cookies.
+	$cookies = [];
 	foreach ( $_COOKIE as $key => $value ) {
 
 		// Ignore cookies that begin with a _, assume they're JS-only.
@@ -71,27 +96,7 @@ function key() {
 		}
 	}
 
-	// Clean the URL/query vars
-	$parsed = parse_url( 'http://example.org' . $_SERVER['REQUEST_URI'] );
-	$path = $parsed['path'];
-	$query = $parsed['query'] ?? '';
-
-	parse_str( $query, $query_vars );
-	foreach ( $query_vars as $key => $value ) {
-		if ( in_array( $key, config( 'ignore_query_vars' ) ) ) {
-			unset( $query_vars[ $key ] );
-		}
-	}
-
-	$cache_key = [
-		'https' => $_SERVER['HTTPS'] ?? '',
-		'method' => $_SERVER['REQUEST_METHOD'] ?? '',
-		'host' => strtolower( $_SERVER['HTTP_HOST'] ?? '' ),
-		'path' => $path,
-		'query_vars' => $query_vars,
-		'cookies' => $cookies,
-		'headers' => $headers,
-	];
+	$cache_key['cookies'] = $cookies;
 
 	return $cache_key;
 }
@@ -149,4 +154,41 @@ function read_metadata( $f ) {
 	$bytes = fread( $f, $data['length'] );
 	$meta = json_decode( $bytes, true );
 	return $meta;
+}
+
+/**
+ * Anonymize a request
+ *
+ * This function checks whether this request should be anonymized, and alters
+ * the cache key to reflect that. Also touches certain super-globals, such
+ * as $_COOKIE to make sure the request is truly anonymous.
+ *
+ * @param string $cache_key The cache key, passed by reference
+ *
+ * @return bool True if the request was anonymized.
+ */
+function anonymize( &$cache_key ) {
+
+	// Don't anonymize POST and other requests that may alter data.
+	if ( $cache_key['method'] !== 'GET' && $cache_key['method'] !== 'HEAD' ) {
+		return false;
+	}
+
+	// TODO: Maybe increase the TTL on these paths.
+	if ( ! in_array( $cache_key['path'], [
+		'/robots.txt',
+		'/favicon.ico',
+	] ) ) {
+		return false;
+	}
+
+	// Very anonymous.
+	// TODO: Clean php://input too.
+	$_COOKIE = [];
+	$_GET = [];
+	$_REQUEST = [];
+	$_POST = [];
+
+	$cache_key['query_vars'] = [];
+	return true;
 }
