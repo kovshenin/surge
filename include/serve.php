@@ -44,15 +44,25 @@ if ( file_exists( CACHE_DIR . '/flags.json.php' ) ) {
 	$flags = json_decode( $flags, true );
 }
 
-if ( ! empty( $flags['*'] ) && $flags['*'] > $meta['created'] ) {
-	header( 'X-Cache: expired' );
-	fclose( $f );
-	return;
-}
-
 if ( $flags && ! empty( $meta['flags'] ) ) {
 	foreach ( $flags as $flag => $timestamp ) {
-		if ( in_array( $flag, $meta['flags'] ) && $timestamp > $meta['created'] ) {
+		if ( $timestamp <= $meta['created'] ) {
+			continue;
+		}
+
+		// Invalidate by path.
+		if ( substr( $flag, 0, 1 ) == '/' ) {
+			if ( substr( $meta['path'], 0, strlen( $flag ) ) ) {
+				header( 'X-Cache: expired' );
+				fclose( $f );
+				return;
+			}
+
+			// This is a path flag, no futher comparison required.
+			continue;
+		}
+
+		if ( in_array( $flag, $meta['flags'] ) ) {
 			header( 'X-Cache: expired' );
 			fclose( $f );
 			return;

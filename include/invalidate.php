@@ -57,7 +57,7 @@ add_action( 'shutdown', function() {
 
 	foreach ( $flush_actions as $action ) {
 		if ( did_action( $action ) ) {
-			expire('*');
+			expire( '/' );
 			break;
 		}
 	}

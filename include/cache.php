@@ -55,16 +55,19 @@ $ob_callback = function( $contents ) {
 		return $contents;
 	}
 
+	$key = key();
+
 	$meta = [
 		'code' => http_response_code(),
 		'headers' => $headers,
 		'created' => time(),
 		'expires' => time() + config( 'ttl' ),
 		'flags' => flag(),
+		'path' => $key['path'],
 	];
 
 	$meta = json_encode( $meta );
-	$cache_key = md5( json_encode( key() ) );
+	$cache_key = md5( json_encode( $key ) );
 	$level = substr( $cache_key, -2 );
 
 	if ( ! wp_mkdir_p( CACHE_DIR . "/{$level}/" ) ) {
