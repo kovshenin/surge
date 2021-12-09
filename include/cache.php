@@ -62,7 +62,7 @@ $ob_callback = function( $contents ) {
 		'headers' => $headers,
 		'created' => time(),
 		'expires' => time() + config( 'ttl' ),
-		'flags' => flag(),
+		'flags' => array_unique( flag() ),
 		'path' => $key['path'],
 	];
 

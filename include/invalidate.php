@@ -12,8 +12,37 @@ namespace Surge;
 
 include_once( __DIR__ . '/common.php' );
 
-// Flag posts in loops.
-add_filter( 'the_posts', function( $posts ) {
+// WooCommerce has some internal WP_Query extensions with transient caching,
+// so the_posts and other core filters will often not run. Getting the product
+// title however is a good indication that a product appears on some page.
+add_filter( 'woocommerce_product_title', function( $title, $product ) {
+	flag( sprintf( 'post:%d:%d', get_current_blog_id(), $product->get_id() ) );
+}, 10, 2 );
+
+// When a post is published, or unpublished, we need to invalidate various
+// different pages featuring that specific post type.
+add_action( 'transition_post_status', function( $status, $old_status, $post ) {
+	if ( $status == $old_status ) {
+		return;
+	}
+
+	// Only if the post type is public.
+	$obj = get_post_type_object( $post->post_type );
+	if ( ! $obj->public ) {
+		return;
+	}
+
+	// To or from publish. TODO: maybe account for other publicly visible statuses.
+	if ( $status == 'publish' || $old_status == 'publish' ) {
+		expire( 'post_type:' . $post->post_type );
+	}
+}, 10, 3 );
+
+// Filter WP_Query at the stage where the query was completed, the results have
+// been fetched and sorted, as well as accounted and offset for sticky posts.
+// Here we attempt to guess which posts appear on this requests and set flags
+// accordingly. We also attempt to set more generic flags based on the query.
+add_filter( 'the_posts', function( $posts, $query ) {
 	$post_ids = wp_list_pluck( $posts, 'ID' );
 	$blog_id = get_current_blog_id();
 
@@ -21,8 +50,32 @@ add_filter( 'the_posts', function( $posts ) {
 		flag( sprintf( 'post:%d:%d', $blog_id, $id ) );
 	}
 
+	// Nothing else to do if it's a singular query.
+	if ( $query->is_singular ) {
+		return $posts;
+	}
+
+	// If it's a query for multiple posts, then flag it with the post types.
+	// TODO: Add proper support for post_type => any
+	$post_types = $query->get( 'post_type' );
+	if ( empty( $post_types ) ) {
+		$post_types = [ 'post' ];
+	} elseif ( is_string( $post_types ) ) {
+		$post_types = [ $post_types ];
+	}
+
+	// Add flags for public post types.
+	foreach ( $post_types as $post_type ) {
+		$obj = get_post_type_object( $post_type );
+		if ( ! $obj->public ) {
+			continue;
+		}
+
+		flag( 'post_type:' . $post_type );
+	}
+
 	return $posts;
-} );
+}, 10, 2 );
 
 // Flag feeds
 $flag_feed = function() { flag( 'feed:' . get_current_blog_id() ); };
