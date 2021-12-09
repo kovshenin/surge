@@ -19,7 +19,7 @@ const CACHE_DIR = WP_CONTENT_DIR . '/cache/surge';
  * @return mixed The config value for the supplied key.
  */
 function config( $key ) {
-	return [
+	return \apply_filters('surge/config', [
 		'ttl' => 600,
 		'ignore_cookies' => [ 'wordpress_test_cookie' ],
 
@@ -39,7 +39,7 @@ function config( $key ) {
 			'hsa_src', 'hsa_ad', 'hsa_acc', 'hsa_net', 'hsa_kw', 'hsa_tgt',
 			'hsa_ver', '_branch_match_id',
 		],
-	][ $key ];
+	])[ $key ];
 }
 
 /**
