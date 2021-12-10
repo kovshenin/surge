@@ -104,6 +104,7 @@ add_action( 'shutdown', function() {
 		'update_option_permalink_structure',
 		'update_option_tag_base',
 		'update_option_category_base',
+		'update_option_WPLANG',
 		'automatic_updates_complete',
 		'_core_updated_successfully',
 	];
