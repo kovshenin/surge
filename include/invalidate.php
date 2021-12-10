@@ -107,6 +107,10 @@ add_action( 'shutdown', function() {
 		'update_option_WPLANG',
 		'update_option_blogname',
 		'update_option_blogdescription',
+		'update_option_blog_public',
+		'update_option_show_on_front',
+		'update_option_page_on_front',
+		'update_option_page_for_posts',
 		'automatic_updates_complete',
 		'_core_updated_successfully',
 	];
