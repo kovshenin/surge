@@ -4,7 +4,7 @@
  * Plugin URI: https://github.com/kovshenin/surge
  * Description: A fast and simple page caching plugin for WordPress
  * Author: Konstantin Kovshenin
- * Author URI: https://konstantil.blog
+ * Author URI: https://konstantin.blog
  * Text Domain: surge
  * Domain Path: /languages
  * Version: 1.0.0
