@@ -20,6 +20,12 @@ include_once( __DIR__ . '/common.php' );
  * @return string Contents.
  */
 $ob_callback = function( $contents ) {
+	$ttl = config( 'ttl' );
+
+	if ( $ttl < 1 ) {
+		return $contents;
+	}
+
 	$skip = false;
 
 	foreach ( headers_list() as $header ) {
@@ -61,7 +67,7 @@ $ob_callback = function( $contents ) {
 		'code' => http_response_code(),
 		'headers' => $headers,
 		'created' => time(),
-		'expires' => time() + config( 'ttl' ),
+		'expires' => time() + $ttl,
 		'flags' => array_unique( flag() ),
 		'path' => $key['path'],
 	];
