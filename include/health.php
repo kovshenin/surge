@@ -32,7 +32,7 @@ function health_test() {
 		__( 'Manage your plugins', 'surge' )
 	);
 
-	if ( $installed === 'false' || $installed > 1 ) {
+	if ( $installed === false || $installed > 1 ) {
 		$result['status'] = 'critical';
 		$result['label'] = __( 'Page caching is not installed correctly', 'surge' );
 		$result['description'] = '<p>' . __( 'Looks like the Surge page caching plugin is not installed correctly. Please try to deactivate and activate it again in the Plugins screen. If that does not help, please visit the WordPress.org support forums.', 'surge' ) . '</p>';
