@@ -57,3 +57,16 @@ add_action( 'shutdown', function() {
 register_activation_hook( __FILE__, function() {
 	delete_option( 'surge_installed' );
 } );
+
+// Remove advanced-cache.php on deactivation
+register_deactivation_hook( __FILE__, function() {
+	delete_option( 'surge_installed' );
+
+	// Remove advanced-cache.php only if its ours.
+	if ( file_exists( WP_CONTENT_DIR . '/advanced-cache.php' ) ) {
+		$contents = file_get_contents( WP_CONTENT_DIR . '/advanced-cache.php' );
+		if ( strpos( $contents, 'namespace Surge;' ) !== false ) {
+			unlink( WP_CONTENT_DIR . '/advanced-cache.php' );
+		}
+	}
+} );
