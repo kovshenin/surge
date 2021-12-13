@@ -52,6 +52,10 @@ Below are a few common reasons:
 
 Of course. If you pass a "Cache-Control: no-cache" header (or max-age=0) the request will automatically be excluded from cache. Note that most WordPress plugins will already do this where necessary.
 
+= fpassthru() has been disabled for security reasons =
+
+It seems like your hosting provider disabled the fpassthru() function, likely by mistake. This is a requirement for Surge. Please get in touch with them and kindly ask them to enable it.
+
 = How can I support Surge? =
 
 If you like Surge, consider giving us a [star on GitHub](https://github.com/kovshenin/surge) and a review on WordPress.org.
