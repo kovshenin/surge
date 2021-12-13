@@ -7,7 +7,7 @@
  * Author URI: https://konstantin.blog
  * Text Domain: surge
  * Domain Path: /languages
- * Version: 1.0.0
+ * Version: 1.0.1
  *
  * @package Surge
  */
