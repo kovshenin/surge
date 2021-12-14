@@ -57,9 +57,7 @@ function config( $key ) {
 			return $_config;
 		} ) ( $config );
 
-		foreach ( $_config as $_key => $_value ) {
-			$config[ $_key ] = $_value;
-		}
+		$config = array_merge( $config, $_config );
 	}
 
 	return $config[ $key ];
