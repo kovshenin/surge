@@ -19,7 +19,13 @@ const CACHE_DIR = WP_CONTENT_DIR . '/cache/surge';
  * @return mixed The config value for the supplied key.
  */
 function config( $key ) {
-	return [
+	static $config = null;
+
+	if ( isset( $config ) ) {
+		return $config[ $key ];
+	}
+
+	$config = [
 		'ttl' => 600,
 		'ignore_cookies' => [ 'wordpress_test_cookie' ],
 
@@ -39,7 +45,22 @@ function config( $key ) {
 			'hsa_src', 'hsa_ad', 'hsa_acc', 'hsa_net', 'hsa_kw', 'hsa_tgt',
 			'hsa_ver', '_branch_match_id',
 		],
-	][ $key ];
+
+		// Add items to this array to add a unique cache variant.
+		'variants' => [],
+	];
+
+	// Run a custom configuration file.
+	if ( defined( 'WP_CACHE_CONFIG' ) ) {
+		$_config = ( function( $config ) {
+			$_config = (array) include( WP_CACHE_CONFIG );
+			return $_config;
+		} ) ( $config );
+
+		$config = array_merge( $config, $_config );
+	}
+
+	return $config[ $key ];
 }
 
 /**
@@ -74,6 +95,7 @@ function key() {
 		'path' => $path,
 		'query_vars' => $query_vars,
 		'cookies' => [],
+		'variants' => config( 'variants' ),
 	];
 
 	// Return early if this request is anonymized.
