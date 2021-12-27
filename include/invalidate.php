@@ -28,7 +28,7 @@ add_action( 'transition_post_status', function( $status, $old_status, $post ) {
 
 	// Only if the post type is public.
 	$obj = get_post_type_object( $post->post_type );
-	if ( ! $obj->public ) {
+	if ( ! $obj || ! $obj->public ) {
 		return;
 	}
 
