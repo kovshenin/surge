@@ -67,7 +67,7 @@ add_filter( 'the_posts', function( $posts, $query ) {
 	// Add flags for public post types.
 	foreach ( $post_types as $post_type ) {
 		$obj = get_post_type_object( $post_type );
-		if ( is_null($obj) || ! $obj->public ) {
+		if ( is_null( $obj ) || ! $obj->public ) {
 			continue;
 		}
 
