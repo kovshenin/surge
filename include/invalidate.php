@@ -130,9 +130,15 @@ add_action( 'shutdown', function() {
 
 	$flags = null;
 	$path = CACHE_DIR . '/flags.json.php';
-	if ( file_exists( $path ) ) {
-		// TODO: Fix race condition, two requests could be modifying flags simultaneously.
-		$flags = substr( file_get_contents( $path ), strlen( '<?php exit; ?>' ) );
+	$mode = file_exists( $path ) ? 'r+' : 'w+';
+	$f = fopen( $path, $mode );
+	$length = filesize( $path );
+
+	flock( $f, LOCK_EX );
+
+	if ( $length ) {
+		$flags = fread( $f, $length );
+		$flags = substr( $flags, strlen( '<?php exit; ?>' ) );
 		$flags = json_decode( $flags, true );
 	}
 
@@ -148,7 +154,13 @@ add_action( 'shutdown', function() {
 		return $contents;
 	}
 
-	file_put_contents( $path, '<?php exit; ?>' . json_encode( $flags ), LOCK_EX ); // TODO: This lock doesn't really help
+	if ( $length ) {
+		ftruncate( $f, 0 );
+		rewind( $f );
+	}
+
+	fwrite( $f, '<?php exit; ?>' . json_encode( $flags ) );
+	fclose( $f );
 } );
 
 $expire_feeds = function() { expire( 'feed:' . get_current_blog_id() ); };
