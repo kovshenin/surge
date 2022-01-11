@@ -32,8 +32,11 @@ add_action( 'transition_post_status', function( $status, $old_status, $post ) {
 		return;
 	}
 
-	// To or from publish. TODO: maybe account for other publicly visible statuses.
-	if ( $status == 'publish' || $old_status == 'publish' ) {
+	$status = get_post_status_object( $status );
+	$old_status = get_post_status_object( $old_status );
+
+	// To or from a public post status.
+	if ( ( $status && $status->public ) || ( $old_status && $old_status->public ) ) {
 		expire( 'post_type:' . $post->post_type );
 	}
 }, 10, 3 );
