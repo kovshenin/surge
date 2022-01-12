@@ -3,9 +3,9 @@ Contributors: kovshenin
 Donate link: https://github.com/kovshenin/surge
 Tags: cache, performance, caching
 Requires at least: 5.7
-Tested up to: 5.8.2
+Tested up to: 5.9
 Requires PHP: 7.3
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.en.html
 
@@ -62,7 +62,13 @@ If you like Surge, consider giving us a [star on GitHub](https://github.com/kovs
 
 == Changelog ==
 
+= 1.0.2 =
+* Fix PHP notice in invalidation
+* Protect against race conditions when writing flags.json
+* Add support for more post statuses in transition_post_status invalidation
+
 = 1.0.1 =
+* Add support for custom user configuration
 * Various invalidation enhancements and fixes
 * Remove advanced-cache.php when plugin is deactivated
 * Add a note about fpassthru() in FAQ
