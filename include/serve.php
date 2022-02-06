@@ -73,8 +73,10 @@ if ( $flags && ! empty( $meta['flags'] ) ) {
 // Set the HTTP response code and send headers.
 http_response_code( $meta['code'] );
 
-foreach ( $meta['headers'] as $name => $value ) {
-	header( "{$name}: {$value}" );
+foreach ( $meta['headers'] as $name => $values ) {
+	foreach( (array) $values as $value ){
+		header( "{$name}: {$value}", false );
+	}
 }
 
 header( 'X-Cache: hit' );

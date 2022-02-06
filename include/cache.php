@@ -30,7 +30,7 @@ $ob_callback = function( $contents ) {
 
 	foreach ( headers_list() as $header ) {
 		list( $name, $value ) = array_map( 'trim', explode( ':', $header, 2 ) );
-		$headers[ $name ] = $value;
+		$headers[ $name ][] = $value;
 
 		if ( strtolower( $name ) == 'set-cookie' ) {
 			$skip = true;
