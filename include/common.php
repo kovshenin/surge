@@ -79,7 +79,23 @@ function key() {
 	$parsed = parse_url( 'http://example.org' . $_SERVER['REQUEST_URI'] );
 	$path = $parsed['path'];
 	$query = $parsed['query'] ?? '';
-	parse_str( $query, $query_vars );
+	$query_vars = [];
+
+	// Simplified parse_str without urldecoding
+	foreach ( explode( '&', $query ) as $pair ) {
+		$parts = explode( '=', $pair, 2 );
+		$key = $parts[0];
+		$value = $parts[1] ?? '';
+
+		if ( ! array_key_exists( $key, $query_vars ) ) {
+			$query_vars[ $key ] = $value;
+		} else {
+			if ( ! is_array( $query_vars[ $key ] ) ) {
+				$query_vars[ $key ] = [ $query_vars[ $key ] ];
+			}
+			$query_vars[ $key ][] = $value;
+		}
+	}
 
 	// Ignore some query vars.
 	foreach ( $query_vars as $key => $value ) {
