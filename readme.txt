@@ -5,7 +5,7 @@ Tags: cache, performance, caching
 Requires at least: 5.7
 Tested up to: 5.9
 Requires PHP: 7.3
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.en.html
 
@@ -61,6 +61,12 @@ It seems like your hosting provider disabled the fpassthru() function, likely by
 If you like Surge, consider giving us a [star on GitHub](https://github.com/kovshenin/surge) and a review on WordPress.org.
 
 == Changelog ==
+
+= 1.0.3 =
+* Invalidate cache when posts_per_page is changed
+* Fix redirect loop with unknown query vars caused by Core's redirect_canonical
+* Ignore X-Cache and X-Powered-By headers from cache metadata
+* Allow multiple headers with the same name
 
 = 1.0.2 =
 * Fix PHP notice in invalidation
