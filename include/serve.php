@@ -74,7 +74,7 @@ if ( $flags && ! empty( $meta['flags'] ) ) {
 http_response_code( $meta['code'] );
 
 foreach ( $meta['headers'] as $name => $values ) {
-	foreach( (array) $values as $value ){
+	foreach( (array) $values as $value ) {
 		header( "{$name}: {$value}", false );
 	}
 }

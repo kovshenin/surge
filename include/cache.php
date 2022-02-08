@@ -30,6 +30,12 @@ $ob_callback = function( $contents ) {
 
 	foreach ( headers_list() as $header ) {
 		list( $name, $value ) = array_map( 'trim', explode( ':', $header, 2 ) );
+
+		// Do not store or vary on these headers.
+		if ( in_array( strtolower( $name ), ['x-cache', 'x-powered-by'] ) ) {
+			continue;
+		}
+
 		$headers[ $name ][] = $value;
 
 		if ( strtolower( $name ) == 'set-cookie' ) {
