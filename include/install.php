@@ -33,6 +33,12 @@ if ( defined( 'WP_CACHE' ) && WP_CACHE ) {
 	return;
 }
 
+// Nothing to do if hook used to disable WP_CACHE writing.
+if ( true === apply_filters( 'surge_disable_wp_cache_overwrite', false ) ) {
+    update_option( 'surge_installed', 4 );
+    return;
+}
+
 // Fetch wp-config.php contents.
 $config_path = ABSPATH . 'wp-config.php';
 if ( ! file_exists( ABSPATH . 'wp-config.php' )
