@@ -27,8 +27,8 @@ if ( ! $ret ) {
 // Create the cache directory
 wp_mkdir_p( CACHE_DIR );
 
-// Nothing to do if WP_CACHE is already on.
-if ( defined( 'WP_CACHE' ) && WP_CACHE ) {
+// Nothing to do if WP_CACHE is already on or forced skip.
+if ( defined( 'WP_CACHE' ) && WP_CACHE || apply_filters( 'surge_skip_config_update', false ) ) {
 	update_option( 'surge_installed', 1 );
 	return;
 }
