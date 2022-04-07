@@ -97,10 +97,25 @@ function key() {
 		}
 	}
 
+	$unset_vars = [];
+
 	// Ignore some query vars.
 	foreach ( $query_vars as $key => $value ) {
 		if ( in_array( $key, config( 'ignore_query_vars' ) ) ) {
+			$unset_vars[] = $key;
 			unset( $query_vars[ $key ] );
+			unset( $_REQUEST[ $key ] );
+			unset( $_GET[ $key ] );
+		}
+	}
+
+	// Clean REQUEST_URI
+	if ( ! empty( $unset_vars ) ) {
+		$unset_vars_regex = implode( '|', array_map( 'preg_quote', $unset_vars ) );
+		$_SERVER['REQUEST_URI'] = preg_replace( "#(\?)?&?({$unset_vars_regex})=[^&]+#", '\\1', $_SERVER['REQUEST_URI'] );
+		$_SERVER['REQUEST_URI'] = str_replace( '?&', '?', $_SERVER['REQUEST_URI'] );
+		if ( $_SERVER['REQUEST_URI'] == '/?' ) {
+			$_SERVER['REQUEST_URI'] = '/';
 		}
 	}
 
