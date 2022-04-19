@@ -31,6 +31,10 @@ add_action( 'plugins_loaded', function() {
 		include_once( __DIR__ . '/include/cron.php' );
 	}
 
+	if ( defined( 'WP_CLI' ) && WP_CLI ) {
+		include_once( __DIR__ . '/include/cli.php' );
+	}
+
 	include_once( __DIR__ . '/include/invalidate.php' );
 } );
 
