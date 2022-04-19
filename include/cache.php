@@ -27,6 +27,7 @@ $ob_callback = function( $contents ) {
 	}
 
 	$skip = false;
+	$headers = [];
 
 	foreach ( headers_list() as $header ) {
 		list( $name, $value ) = array_map( 'trim', explode( ':', $header, 2 ) );
