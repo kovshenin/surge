@@ -46,7 +46,11 @@ add_action( 'surge_delete_expired', function() {
 	}
 
 	foreach ( $files as $filename ) {
-		$stat = stat( $filename );
+		// Some files after scandir may already be gone/renamed.
+		$stat = @stat( $filename );
+		if ( ! $stat ) {
+			continue;
+		}
 
 		// Skip files modified in the last minute.
 		if ( $stat['mtime'] + MINUTE_IN_SECONDS > $time ) {
