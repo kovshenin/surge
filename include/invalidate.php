@@ -134,7 +134,14 @@ add_action( 'shutdown', function() {
 
 	$flags = null;
 	$path = CACHE_DIR . '/flags.json.php';
-	$mode = file_exists( $path ) ? 'r+' : 'w+';
+	$exists = file_exists( $path );
+	$mode = $exists ? 'r+' : 'w+';
+
+	// Make sure cache dir exists.
+	if ( ! $exists && ! wp_mkdir_p( CACHE_DIR ) ) {
+		return;
+	}
+
 	$f = fopen( $path, $mode );
 	$length = filesize( $path );
 
