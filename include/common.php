@@ -120,7 +120,7 @@ function key() {
 	}
 
 	$cache_key = [
-		'https' => $_SERVER['HTTPS'] ?? '',
+		'https' => is_ssl(),
 		'method' => strtoupper( $_SERVER['REQUEST_METHOD'] ) ?? '',
 		'host' => strtolower( $_SERVER['HTTP_HOST'] ?? '' ),
 		'path' => $path,
