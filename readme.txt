@@ -3,9 +3,9 @@ Contributors: kovshenin
 Donate link: https://github.com/kovshenin/surge
 Tags: cache, performance, caching
 Requires at least: 5.7
-Tested up to: 6.0
+Tested up to: 6.1
 Requires PHP: 7.3
-Stable tag: 1.0.4
+Stable tag: 1.0.5
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.en.html
 
@@ -65,6 +65,11 @@ It seems like your hosting provider disabled the fpassthru() function, likely by
 If you like Surge, consider giving us a [star on GitHub](https://github.com/kovshenin/surge) and a review on WordPress.org.
 
 == Changelog ==
+
+= 1.0.5 =
+* Fix woocommerce_product_title compatibility
+* Honor DONOTCACHEPAGE constant
+* Use built-in is_ssl() WordPress function for better compatibility
 
 = 1.0.4 =
 * Add a WP-CLI command to invalidate/flush page cache
