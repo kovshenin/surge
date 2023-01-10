@@ -64,6 +64,10 @@ $ob_callback = function( $contents ) {
 		$skip = true;
 	}
 
+	if ( defined( 'DONOTCACHEPAGE' ) && DONOTCACHEPAGE ) {
+		$skip = true;
+	}
+
 	if ( $skip ) {
 		return $contents;
 	}
