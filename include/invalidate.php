@@ -17,6 +17,7 @@ include_once( __DIR__ . '/common.php' );
 // title however is a good indication that a product appears on some page.
 add_filter( 'woocommerce_product_title', function( $title, $product ) {
 	flag( sprintf( 'post:%d:%d', get_current_blog_id(), $product->get_id() ) );
+	return $title;
 }, 10, 2 );
 
 // When a post is published, or unpublished, we need to invalidate various
