@@ -50,6 +50,14 @@ add_filter( 'site_status_tests', function( $tests ) {
 	return $tests;
 } );
 
+// Support for 6.1+ cache headers check.
+add_filter( 'site_status_page_cache_supported_cache_headers', function( $headers ) {
+	$headers['x-cache'] = static function( $value ) {
+		return false !== strpos( strtolower( $value ), 'hit' );
+	};
+	return $headers;
+} );
+
 // Schedule cron events.
 add_action( 'shutdown', function() {
 	if ( ! wp_next_scheduled( 'surge_delete_expired' ) ) {
