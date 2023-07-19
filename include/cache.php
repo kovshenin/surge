@@ -124,7 +124,7 @@ $ob_callback = function( $contents ) {
 		$scope = 'private';
 	}
 
-	header( sprintf( 'Cache-Control: %s, s-maxage=%d, stale-while-revalidate=%d',
+	header( sprintf( 'Cache-Control: %s, max-age=%d, stale-while-revalidate=%d',
 		$scope, $ttl, config( 'stale' ) ) );
 
 	return $contents;
