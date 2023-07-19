@@ -81,6 +81,7 @@ $ob_callback = function( $contents ) {
 		'expires' => time() + $ttl,
 		'flags' => array_unique( flag() ),
 		'path' => $key['path'],
+		'has_cookies' => ! empty( $key['cookies'] ),
 	];
 
 	$meta = json_encode( $meta );
@@ -114,6 +115,17 @@ $ob_callback = function( $contents ) {
 	) {
 		unlink( CACHE_DIR . "/{$level}/{$cache_key}.{$hash}.php" );
 	}
+
+	$scope = 'public';
+
+	// Vary cache on cookie if we have any.
+	if ( $meta['has_cookies'] ) {
+		header( 'Vary: Cookie' );
+		$scope = 'private';
+	}
+
+	header( sprintf( 'Cache-Control: %s, s-maxage=%d, stale-while-revalidate=%d',
+		$scope, $ttl, config( 'stale' ) ) );
 
 	return $contents;
 };
