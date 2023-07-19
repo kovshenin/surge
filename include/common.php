@@ -28,6 +28,7 @@ function config( $key ) {
 	$config = [
 		'ttl' => 600,
 		'ignore_cookies' => [ 'wordpress_test_cookie' ],
+		'stale' => 60,
 
 		// https://github.com/mpchadwick/tracking-query-params-registry/blob/master/_data/params.csv
 		'ignore_query_vars' => [
