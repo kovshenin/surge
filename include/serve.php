@@ -88,7 +88,7 @@ if ( ! empty( $meta['has_cookies'] ) ) {
 	$scope = 'private';
 }
 
-header( sprintf( 'Cache-Control: %s, max-age=%d, stale-while-revalidate=%d',
+header( sprintf( 'Cache-Control: %s, s-maxage=%d, stale-while-revalidate=%d',
 	$scope, $meta['expires'] - time(), config( 'stale' ) ) );
 
 // header( 'X-Flags: ' . implode( ', ', $meta['flags'] ) );
