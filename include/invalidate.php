@@ -173,6 +173,8 @@ add_action( 'shutdown', function() {
 
 	fwrite( $f, '<?php exit; ?>' . json_encode( $flags ) );
 	fclose( $f );
+
+	event( 'expire', [ 'flags' => $expire ] );
 } );
 
 $expire_feeds = function() { expire( 'feed:' . get_current_blog_id() ); };

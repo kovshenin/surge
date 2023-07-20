@@ -73,7 +73,6 @@ $ob_callback = function( $contents ) {
 	}
 
 	$key = key();
-	$has_cookies = ! empty( $key['cookies'] );
 
 	$meta = [
 		'code' => http_response_code(),
@@ -82,10 +81,9 @@ $ob_callback = function( $contents ) {
 		'expires' => time() + $ttl,
 		'flags' => array_unique( flag() ),
 		'path' => $key['path'],
-		'has_cookies' => $has_cookies,
 	];
 
-	$meta = json_encode( $meta );
+	$meta_json = json_encode( $meta );
 	$cache_key = md5( json_encode( $key ) );
 	$level = substr( $cache_key, -2 );
 
@@ -103,8 +101,8 @@ $ob_callback = function( $contents ) {
 	}
 
 	fwrite( $f, '<?php exit; ?>' );
-	fwrite( $f, pack( 'L', strlen( $meta ) ) );
-	fwrite( $f, $meta );
+	fwrite( $f, pack( 'L', strlen( $meta_json ) ) );
+	fwrite( $f, $meta_json );
 	fwrite( $f, $contents );
 
 	// Close the file.
@@ -117,17 +115,8 @@ $ob_callback = function( $contents ) {
 		unlink( CACHE_DIR . "/{$level}/{$cache_key}.{$hash}.php" );
 	}
 
-	$scope = 'public';
-
-	// Vary cache on cookie if we have any.
-	if ( $has_cookies ) {
-		header( 'Vary: Cookie' );
-		$scope = 'private';
-	}
-
-	header( sprintf( 'Cache-Control: %s, s-maxage=%d, stale-while-revalidate=%d',
-		$scope, $ttl, config( 'stale' ) ) );
-
+	header( 'X-Cache: miss' );
+	event( 'request', [ 'meta' => $meta ] );
 	return $contents;
 };
 
