@@ -16,7 +16,7 @@ if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
 
 include_once( __DIR__ . '/common.php' );
 
-header( 'X-Cache: bypass' );
+header( 'X-Cache: miss' );
 $cache_key = md5( json_encode( key() ) );
 $level = substr( $cache_key, -2 );
 

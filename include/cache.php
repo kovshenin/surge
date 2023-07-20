@@ -10,6 +10,10 @@
 
 namespace Surge;
 
+if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
+	return;
+}
+
 include_once( __DIR__ . '/common.php' );
 
 /**
@@ -23,6 +27,7 @@ $ob_callback = function( $contents ) {
 	$ttl = config( 'ttl' );
 
 	if ( $ttl < 1 ) {
+		header( 'X-Cache: bypass' );
 		return $contents;
 	}
 
@@ -69,6 +74,7 @@ $ob_callback = function( $contents ) {
 	}
 
 	if ( $skip ) {
+		header( 'X-Cache: bypass' );
 		return $contents;
 	}
 
@@ -97,6 +103,7 @@ $ob_callback = function( $contents ) {
 
 	// Could not create file.
 	if ( false === $f ) {
+		header( 'X-Cache: bypass' );
 		return $contents;
 	}
 
@@ -115,7 +122,6 @@ $ob_callback = function( $contents ) {
 		unlink( CACHE_DIR . "/{$level}/{$cache_key}.{$hash}.php" );
 	}
 
-	header( 'X-Cache: miss' );
 	event( 'request', [ 'meta' => $meta ] );
 	return $contents;
 };
