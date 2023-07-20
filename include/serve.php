@@ -16,7 +16,7 @@ if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
 
 include_once( __DIR__ . '/common.php' );
 
-header( 'X-Cache: miss' );
+header( 'X-Cache: bypass' );
 $cache_key = md5( json_encode( key() ) );
 $level = substr( $cache_key, -2 );
 
@@ -80,18 +80,7 @@ foreach ( $meta['headers'] as $name => $values ) {
 }
 
 header( 'X-Cache: hit' );
-
-$scope = 'public';
-// Vary cache on cookie if we have any.
-if ( ! empty( $meta['has_cookies'] ) ) {
-	header( 'Vary: Cookie' );
-	$scope = 'private';
-}
-
-header( sprintf( 'Cache-Control: %s, s-maxage=%d, stale-while-revalidate=%d',
-	$scope, $meta['expires'] - time(), config( 'stale' ) ) );
-
-// header( 'X-Flags: ' . implode( ', ', $meta['flags'] ) );
+event( 'request', [ 'meta' => $meta ] );
 fpassthru( $f ); // Pass the remaining bytes to the output.
 fclose( $f );
 die();
