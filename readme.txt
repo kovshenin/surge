@@ -3,9 +3,9 @@ Contributors: kovshenin
 Donate link: https://github.com/kovshenin/surge
 Tags: cache, performance, caching
 Requires at least: 5.7
-Tested up to: 6.3
+Tested up to: 6.4
 Requires PHP: 7.3
-Stable tag: 1.0.5
+Stable tag: 1.1.0
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.en.html
 
@@ -65,6 +65,13 @@ It seems like your hosting provider disabled the fpassthru() function, likely by
 If you like Surge, consider giving us a [star on GitHub](https://github.com/kovshenin/surge) and a review on WordPress.org.
 
 == Changelog ==
+
+= 1.1.0 =
+* Improved Multisite compatibility
+* Fixed occasional stat() warnings in cleanup routines
+* Fixed expiration by path being too broad
+* Added a filter for flush actions
+* Feature: added a simple events system for s-maxage and stale-while-revalidate support
 
 = 1.0.5 =
 * Fix woocommerce_product_title compatibility
