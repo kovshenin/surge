@@ -98,6 +98,13 @@ add_action( 'clean_post_cache', function( $post_id, $post ) {
 	expire( sprintf( 'post:%d:%d', $blog_id, $post_id ) );
 }, 10, 2 );
 
+// Multisite network/blog flags.
+add_action( 'init', function() {
+	if ( is_multisite() ) {
+		flag( sprintf( 'network:%d:%d', get_current_network_id(), get_current_blog_id() ) );
+	}
+} );
+
 // Last-minute expirations, save flags.
 add_action( 'shutdown', function() {
 	$flush_actions = [
@@ -117,13 +124,28 @@ add_action( 'shutdown', function() {
 		'update_option_page_for_posts',
 		'update_option_posts_per_page',
 		'update_option_woocommerce_permalinks',
-		'automatic_updates_complete',
-		'_core_updated_successfully',
 	];
 
 	$flush_actions = apply_filters( 'surge_flush_actions', $flush_actions );
 
+	$ms_flush_actions = [
+		'_core_updated_successfully',
+		'automatic_updates_complete',
+	];
+
+	$expire_flag = is_multisite()
+		? sprintf( 'network:%d:%d', get_current_network_id(), get_current_blog_id() )
+		: '/';
+
 	foreach ( $flush_actions as $action ) {
+		if ( did_action( $action ) ) {
+			expire( $expire_flag );
+			break;
+		}
+	}
+
+	// Multisite flush actions expire the entire network.
+	foreach ( $ms_flush_actions as $action ) {
 		if ( did_action( $action ) ) {
 			expire( '/' );
 			break;
