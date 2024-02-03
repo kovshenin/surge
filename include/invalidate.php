@@ -121,6 +121,8 @@ add_action( 'shutdown', function() {
 		'_core_updated_successfully',
 	];
 
+	$flush_actions = apply_filters( 'surge_flush_actions', $flush_actions );
+
 	foreach ( $flush_actions as $action ) {
 		if ( did_action( $action ) ) {
 			expire( '/' );
