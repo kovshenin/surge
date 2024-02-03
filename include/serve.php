@@ -52,7 +52,7 @@ if ( $flags && ! empty( $meta['flags'] ) ) {
 
 		// Invalidate by path.
 		if ( substr( $flag, 0, 1 ) == '/' ) {
-			if ( substr( $meta['path'], 0, strlen( $flag ) ) ) {
+			if ( substr( $meta['path'], 0, strlen( $flag ) ) === $flag ) {
 				header( 'X-Cache: expired' );
 				fclose( $f );
 				return;
