@@ -3,7 +3,7 @@ Contributors: kovshenin
 Donate link: https://github.com/kovshenin/surge
 Tags: cache, performance, caching
 Requires at least: 5.7
-Tested up to: 6.4
+Tested up to: 6.6
 Requires PHP: 7.3
 Stable tag: 1.1.0
 License: GPLv3 or later
