@@ -63,6 +63,13 @@ function config( $key ) {
 		$config = array_merge( $config, $_config );
 	}
 
+	foreach ( $config as $key => $value ) {
+		$const = 'SURGE_' . strtoupper( $key );
+		if ( defined( $const ) ) {
+			$config[ $key ] = constant( $const );
+		}
+	}
+
 	return $config[ $key ];
 }
 
