@@ -187,7 +187,7 @@ add_action( 'shutdown', function() {
 	}
 
 	if ( ! wp_mkdir_p( CACHE_DIR ) ) {
-		return $contents;
+		return;
 	}
 
 	if ( $length ) {
