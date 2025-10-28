@@ -28,6 +28,7 @@ $ob_callback = function( $contents ) {
 
 	if ( $ttl < 1 ) {
 		header( 'X-Cache: bypass' );
+		status( 'bypass' );
 		return $contents;
 	}
 
@@ -75,6 +76,7 @@ $ob_callback = function( $contents ) {
 
 	if ( $skip ) {
 		header( 'X-Cache: bypass' );
+		status( 'bypass' );
 		return $contents;
 	}
 
@@ -104,6 +106,7 @@ $ob_callback = function( $contents ) {
 	// Could not create file.
 	if ( false === $f ) {
 		header( 'X-Cache: bypass' );
+		status( 'bypass' );
 		return $contents;
 	}
 
@@ -122,7 +125,7 @@ $ob_callback = function( $contents ) {
 		unlink( CACHE_DIR . "/{$level}/{$cache_key}.{$hash}.php" );
 	}
 
-	event( 'request', [ 'meta' => $meta ] );
+	event( 'request', [ 'meta' => $meta, 'status' => status() ] );
 	return $contents;
 };
 

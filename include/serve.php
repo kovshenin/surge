@@ -17,6 +17,7 @@ if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
 include_once( __DIR__ . '/common.php' );
 
 header( 'X-Cache: miss' );
+status( 'miss' );
 $cache_key = md5( json_encode( key() ) );
 $level = substr( $cache_key, -2 );
 
@@ -34,6 +35,7 @@ if ( ! $meta ) {
 
 if ( $meta['expires'] < time() ) {
 	header( 'X-Cache: expired' );
+	status( 'expired' );
 	fclose( $f );
 	return;
 }
@@ -54,6 +56,7 @@ if ( $flags && ! empty( $meta['flags'] ) ) {
 		if ( substr( $flag, 0, 1 ) == '/' ) {
 			if ( substr( $meta['path'], 0, strlen( $flag ) ) === $flag ) {
 				header( 'X-Cache: expired' );
+				status( 'expired' );
 				fclose( $f );
 				return;
 			}
@@ -64,6 +67,7 @@ if ( $flags && ! empty( $meta['flags'] ) ) {
 
 		if ( in_array( $flag, $meta['flags'] ) ) {
 			header( 'X-Cache: expired' );
+			status( 'expired' );
 			fclose( $f );
 			return;
 		}
@@ -80,7 +84,16 @@ foreach ( $meta['headers'] as $name => $values ) {
 }
 
 header( 'X-Cache: hit' );
-event( 'request', [ 'meta' => $meta ] );
-fpassthru( $f ); // Pass the remaining bytes to the output.
+event( 'request', [ 'meta' => $meta, 'status' => status( 'hit' ) ] );
+
+if ( config( 'fpassthru_alt' ) ) {
+	// Less efficient but works on hosts that disable fpassthru.
+	// Buffers the entire response in memory.
+	echo stream_get_contents( $f );
+} else {
+	// Pass the remaining bytes to the output.
+	fpassthru( $f );
+}
+
 fclose( $f );
 die();

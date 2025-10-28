@@ -28,6 +28,7 @@ function config( $key ) {
 	$config = [
 		'ttl' => 600,
 		'ignore_cookies' => [ 'wordpress_test_cookie' ],
+		'fpassthru_alt' => false,
 
 		// https://github.com/mpchadwick/tracking-query-params-registry/blob/master/_data/params.csv
 		'ignore_query_vars' => [
@@ -265,4 +266,20 @@ function event( $event, $args ) {
 	foreach ( $events[ $event ] as $key => $callback ) {
 		$callback( $args );
 	}
+}
+
+/**
+ * Get or set the status.
+ *
+ * @param string $new_status The status to set.
+ */
+function status( $new_status = null ) {
+	static $status = 'undefined';
+
+	if ( ! $new_status ) {
+		return $status;
+	}
+
+	$status = $new_status;
+	return $status;
 }
