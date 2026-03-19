@@ -1,0 +1,91 @@
+name: Surge CI
+
+on:
+  push:
+    branches:
+      - trunk
+    paths:
+      - '.env.example'
+      - '.github/workflows/ci.yml'
+      - 'bin/**'
+      - 'build/**'
+      - 'client/**'
+      - 'composer.json'
+      - 'docker-compose.yml'
+      - 'include/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'readme.txt'
+      - 'surge.php'
+      - 'tests/**'
+      - 'uninstall.php'
+      - 'webpack.config.js'
+  pull_request:
+    paths:
+      - '.env.example'
+      - '.github/workflows/ci.yml'
+      - 'bin/**'
+      - 'build/**'
+      - 'client/**'
+      - 'composer.json'
+      - 'docker-compose.yml'
+      - 'include/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'readme.txt'
+      - 'surge.php'
+      - 'tests/**'
+      - 'uninstall.php'
+      - 'webpack.config.js'
+
+jobs:
+  package-and-smoke-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP and Composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+
+      - name: Prepare environment
+        run: cp .env.example .env
+
+      - name: Run shell tests
+        run: composer test:shell
+
+      - name: Start WordPress services
+        run: composer dev:up
+
+      - name: Build preview ZIP
+        run: composer plugin:build:preview
+
+      - name: Install plugin from ZIP
+        run: composer plugin:install:zip
+
+      - name: Run smoke test
+        run: composer test:smoke
+
+      - name: Capture Docker logs
+        if: always()
+        run: |
+          mkdir -p .artifacts
+          docker compose logs --no-color > .artifacts/docker-compose.log || true
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surge-ci-artifacts
+          path: |
+            dist/
+            .artifacts/
+          retention-days: 14
+
+      - name: Stop services
+        if: always()
+        run: composer dev:down

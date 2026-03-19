@@ -8,3 +8,6 @@ node_modules/
 *.tar.gz
 *.zip
 .svn
+.env
+dist/
+.artifacts/

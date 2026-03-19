@@ -1,0 +1,306 @@
+#surge-admin-root.tui-interface {
+  min-height: 100vh;
+}
+
+.surge-skip-link {
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-start: 12px;
+  z-index: 20;
+}
+
+.surge-admin-shell {
+  position: relative;
+  min-height: 100vh;
+  padding: clamp(20px, 3vw, 36px);
+  color: var(--tui-color-fg);
+  background:
+    radial-gradient(circle at top left, rgba(41, 114, 255, 0.14), transparent 32%),
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(247, 249, 255, 0.96), rgba(243, 245, 249, 0.98));
+}
+
+.surge-admin-shell__backdrop {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.45) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.45) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.18), transparent 80%);
+  pointer-events: none;
+}
+
+.surge-admin-shell__inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 24px;
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.surge-admin-hero {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 28px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.surge-admin-kicker {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #4f46e5;
+}
+
+.surge-admin-hero h2 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.1rem);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+}
+
+.surge-admin-summary {
+  max-width: 72ch;
+  margin: 12px 0 0;
+  font-size: 1rem;
+  color: var(--tui-color-fg-muted);
+}
+
+.surge-admin-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.surge-admin-status,
+.surge-notice {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.surge-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.surge-panel {
+  grid-column: span 12;
+}
+
+.surge-panel--summary {
+  grid-column: span 12;
+}
+
+@media (min-width: 900px) {
+  .surge-panel--summary,
+  .surge-panel:nth-of-type(2) {
+    grid-column: span 6;
+  }
+
+  .surge-panel:nth-of-type(3) {
+    grid-column: span 12;
+  }
+}
+
+.surge-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.surge-stat-grid article {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.surge-stat-grid span {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--tui-color-fg-muted);
+}
+
+.surge-stat-grid strong {
+  font-size: 1.3rem;
+  line-height: 1.2;
+}
+
+.surge-checklist {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.surge-checklist li {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.9);
+  border-left: 4px solid rgba(71, 85, 105, 0.2);
+}
+
+.surge-checklist li[data-status='success'] {
+  border-left-color: #16a34a;
+}
+
+.surge-checklist li[data-status='warning'] {
+  border-left-color: #f59e0b;
+}
+
+.surge-checklist li[data-status='danger'] {
+  border-left-color: #dc2626;
+}
+
+.surge-checklist__label {
+  font-weight: 600;
+}
+
+.surge-checklist__details {
+  color: var(--tui-color-fg-muted);
+  font-size: 0.95rem;
+}
+
+.surge-action-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.surge-config-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.surge-config-list li {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.surge-config-list span,
+.surge-help-copy p {
+  color: var(--tui-color-fg-muted);
+}
+
+.surge-config-list strong {
+  font-size: 1rem;
+}
+
+.surge-config-list em {
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.76rem;
+  color: var(--tui-color-fg-muted);
+}
+
+.surge-settings-form {
+  display: grid;
+  gap: 20px;
+}
+
+.surge-settings-form__field {
+  display: grid;
+  gap: 8px;
+}
+
+.surge-settings-form__label {
+  font-weight: 600;
+}
+
+.surge-settings-form__input {
+  width: min(240px, 100%);
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.94);
+  color: var(--tui-color-fg);
+}
+
+.surge-settings-form__textarea {
+  width: min(100%, 520px);
+  min-height: 120px;
+  padding-block: 12px;
+  resize: vertical;
+}
+
+.surge-settings-form__input:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.surge-settings-form__description,
+.surge-settings-form__meta,
+.surge-settings-form__lock {
+  margin: 0;
+  color: var(--tui-color-fg-muted);
+}
+
+.surge-settings-form__meta em {
+  margin-inline-start: 8px;
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.76rem;
+}
+
+.surge-settings-form__lock {
+  color: #b45309;
+}
+
+.surge-settings-form__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.surge-help-copy {
+  display: grid;
+  gap: 12px;
+}
+
+.surge-help-copy p {
+  margin: 0;
+}
+
+.tui-modal__dialog {
+  max-width: min(680px, calc(100vw - 32px));
+}
+
+@media (max-width: 782px) {
+  .surge-admin-shell {
+    padding: 16px;
+  }
+
+  .surge-admin-hero {
+    padding: 18px 20px;
+  }
+
+  .surge-stat-grid {
+    grid-template-columns: 1fr;
+  }
+}

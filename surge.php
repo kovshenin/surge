@@ -35,6 +35,12 @@ add_action( 'plugins_loaded', function() {
 		include_once( __DIR__ . '/include/cli.php' );
 	}
 
+	include_once( __DIR__ . '/include/rest.php' );
+
+	if ( is_admin() ) {
+		include_once( __DIR__ . '/include/admin.php' );
+	}
+
 	include_once( __DIR__ . '/include/invalidate.php' );
 } );
 

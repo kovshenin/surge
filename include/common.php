@@ -9,23 +9,17 @@
 
 namespace Surge;
 
+include_once( __DIR__ . '/options.php' );
+
 const CACHE_DIR = WP_CONTENT_DIR . '/cache/surge';
 
 /**
- * Caching configuration settings.
+ * Get the default Surge configuration.
  *
- * @param string $key Configuration key
- *
- * @return mixed The config value for the supplied key.
+ * @return array
  */
-function config( $key ) {
-	static $config = null;
-
-	if ( isset( $config ) ) {
-		return $config[ $key ];
-	}
-
-	$config = [
+function config_defaults() {
+	return [
 		'ttl' => 600,
 		'ignore_cookies' => [ 'wordpress_test_cookie' ],
 		'fpassthru_alt' => false,
@@ -53,25 +47,130 @@ function config( $key ) {
 		// Add callbacks to events early to do crazy stuff.
 		'events' => [],
 	];
+}
+
+/**
+ * Resolve the effective Surge configuration and source metadata.
+ *
+ * @param bool $refresh Whether to rebuild the cached snapshot.
+ *
+ * @return array{values: array<string, mixed>, sources: array<string, string>}
+ */
+function config_snapshot( $refresh = false ) {
+	static $snapshot = null;
+
+	if ( $refresh ) {
+		$snapshot = null;
+	}
+
+	if (
+		isset( $snapshot )
+		&& function_exists( 'get_option' )
+		&& empty( $snapshot['ui_ready'] )
+	) {
+		$snapshot = null;
+	}
+
+	if ( isset( $snapshot ) ) {
+		return $snapshot;
+	}
+
+	$values = config_defaults();
+	$sources = array_fill_keys( array_keys( $values ), 'default' );
+
+	$ui_settings = ui_settings();
+
+	foreach ( $ui_settings as $key => $value ) {
+		if ( 'ttl' === $key ) {
+			$values[ $key ] = $value;
+			$sources[ $key ] = 'ui';
+			continue;
+		}
+	}
+
+	if ( ! empty( $ui_settings['extra_ignore_query_vars'] ) ) {
+		$values['ignore_query_vars'] = array_values(
+			array_unique(
+				array_merge( $values['ignore_query_vars'], $ui_settings['extra_ignore_query_vars'] )
+			)
+		);
+		$sources['ignore_query_vars'] = 'ui';
+	}
+
+	if ( ! empty( $ui_settings['extra_ignore_cookies'] ) ) {
+		$values['ignore_cookies'] = array_values(
+			array_unique(
+				array_merge( $values['ignore_cookies'], $ui_settings['extra_ignore_cookies'] )
+			)
+		);
+		$sources['ignore_cookies'] = 'ui';
+	}
 
 	// Run a custom configuration file.
 	if ( defined( 'WP_CACHE_CONFIG' ) ) {
 		$_config = ( function( $config ) {
 			$_config = (array) include( WP_CACHE_CONFIG );
 			return $_config;
-		} ) ( $config );
+		} ) ( $values );
 
-		$config = array_merge( $config, $_config );
-	}
+		foreach ( $_config as $key => $value ) {
+			if ( ! array_key_exists( $key, $values ) ) {
+				continue;
+			}
 
-	foreach ( $config as $key => $value ) {
-		$const = 'SURGE_' . strtoupper( $key );
-		if ( defined( $const ) ) {
-			$config[ $key ] = constant( $const );
+			$values[ $key ] = $value;
+			$sources[ $key ] = 'wp_cache_config';
 		}
 	}
 
-	return $config[ $key ];
+	foreach ( $values as $key => $value ) {
+		$const = 'SURGE_' . strtoupper( $key );
+		if ( defined( $const ) ) {
+			$values[ $key ] = constant( $const );
+			$sources[ $key ] = 'constant';
+		}
+	}
+
+	$snapshot = [
+		'values' => $values,
+		'sources' => $sources,
+		'ui_ready' => function_exists( 'get_option' ),
+	];
+
+	return $snapshot;
+}
+
+/**
+ * Caching configuration settings.
+ *
+ * @param string $key Configuration key
+ *
+ * @return mixed The config value for the supplied key.
+ */
+function config( $key ) {
+	$snapshot = config_snapshot();
+	return $snapshot['values'][ $key ];
+}
+
+/**
+ * Get the source for an effective configuration value.
+ *
+ * @param string $key Configuration key.
+ *
+ * @return string
+ */
+function config_source( $key ) {
+	$snapshot = config_snapshot();
+	return $snapshot['sources'][ $key ] ?? 'default';
+}
+
+/**
+ * Clear the cached config snapshot.
+ *
+ * @return void
+ */
+function reset_config_snapshot() {
+	config_snapshot( true );
 }
 
 /**
@@ -289,4 +388,472 @@ function status( $new_status = null ) {
 
 	$status = $new_status;
 	return $status;
+}
+
+/**
+ * Check whether the active advanced-cache drop-in belongs to Surge.
+ *
+ * @return bool
+ */
+function advanced_cache_is_owned() {
+	if ( ! file_exists( WP_CONTENT_DIR . '/advanced-cache.php' ) ) {
+		return false;
+	}
+
+	$contents = file_get_contents( WP_CONTENT_DIR . '/advanced-cache.php' );
+	return false !== strpos( $contents, 'namespace Surge;' );
+}
+
+/**
+ * Get a direct filesystem handler.
+ *
+ * @return \WP_Filesystem_Direct
+ */
+function cache_filesystem() {
+	require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php';
+	require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
+
+	return new \WP_Filesystem_Direct( false );
+}
+
+/**
+ * Get recursive cache size and item count.
+ *
+ * @param string $path Cache path.
+ *
+ * @return array{0: int, 1: int}
+ */
+function cache_stats( $path = CACHE_DIR ) {
+	$fs = cache_filesystem();
+	return cache_stats_for_path( $fs, $path );
+}
+
+/**
+ * Recursive helper for cache_stats().
+ *
+ * @param \WP_Filesystem_Direct $fs Filesystem object.
+ * @param string               $path Cache path.
+ *
+ * @return array{0: int, 1: int}
+ */
+function cache_stats_for_path( $fs, $path ) {
+	$size = 0;
+	$count = 0;
+
+	if ( ! $fs->is_dir( $path ) ) {
+		return [ $size, $count ];
+	}
+
+	$entries = $fs->dirlist( $path );
+	if ( ! is_array( $entries ) ) {
+		return [ $size, $count ];
+	}
+
+	foreach ( $entries as $name => $info ) {
+		if ( 'flags.json.php' === $name ) {
+			continue;
+		}
+
+		if ( 'f' === $info['type'] ) {
+			$size += (int) $info['size'];
+			$count += 1;
+			continue;
+		}
+
+		if ( 'd' === $info['type'] ) {
+			$subdir = cache_stats_for_path( $fs, trailingslashit( $path ) . $name );
+			$size += $subdir[0];
+			$count += $subdir[1];
+		}
+	}
+
+	return [ $size, $count ];
+}
+
+/**
+ * Persist invalidation flags immediately.
+ *
+ * @param array $expire_flags Flags to expire.
+ *
+ * @return bool
+ */
+function persist_expire_flags( array $expire_flags ) {
+	if ( empty( $expire_flags ) ) {
+		return true;
+	}
+
+	$path = CACHE_DIR . '/flags.json.php';
+	$exists = file_exists( $path );
+	$mode = $exists ? 'r+' : 'w+';
+
+	if ( ! $exists && ! wp_mkdir_p( CACHE_DIR ) ) {
+		return false;
+	}
+
+	$f = fopen( $path, $mode );
+	if ( ! $f ) {
+		return false;
+	}
+
+	$length = $exists ? filesize( $path ) : 0;
+	$flags = [];
+
+	flock( $f, LOCK_EX );
+
+	if ( $length ) {
+		$raw = fread( $f, $length );
+		$raw = substr( $raw, strlen( '<?php exit; ?>' ) );
+		$decoded = json_decode( $raw, true );
+		if ( is_array( $decoded ) ) {
+			$flags = $decoded;
+		}
+	}
+
+	foreach ( $expire_flags as $flag ) {
+		$flags[ $flag ] = time();
+	}
+
+	if ( $length ) {
+		ftruncate( $f, 0 );
+		rewind( $f );
+	}
+
+	fwrite( $f, '<?php exit; ?>' . wp_json_encode( $flags ) );
+	fclose( $f );
+
+	event( 'expire', [ 'flags' => array_values( $expire_flags ) ] );
+	return true;
+}
+
+/**
+ * Flush the cache safely for admin and CLI actions.
+ *
+ * @param bool $delete Whether to delete cache files from disk.
+ *
+ * @return array{ok: bool, message: string, mode: string}
+ */
+function flush_cache_entries( $delete = false ) {
+	if ( ! $delete ) {
+		$persisted = persist_expire_flags( [ '/' ] );
+		return [
+			'ok' => $persisted,
+			'mode' => 'expire',
+			'message' => $persisted
+				? __( 'Marked existing cache entries as expired.', 'surge' )
+				: __( 'Could not mark cache entries as expired.', 'surge' ),
+		];
+	}
+
+	$fs = cache_filesystem();
+	if ( $fs->exists( CACHE_DIR ) && ! $fs->rmdir( CACHE_DIR, true ) ) {
+		return [
+			'ok' => false,
+			'mode' => 'delete',
+			'message' => sprintf(
+				/* translators: %s cache directory path */
+				__( 'Could not delete cache directory %s. Please check permissions.', 'surge' ),
+				CACHE_DIR
+			),
+		];
+	}
+
+	if ( ! wp_mkdir_p( CACHE_DIR ) ) {
+		return [
+			'ok' => false,
+			'mode' => 'delete',
+			'message' => __( 'Cache files were deleted, but the cache directory could not be recreated.', 'surge' ),
+		];
+	}
+
+	return [
+		'ok' => true,
+		'mode' => 'delete',
+		'message' => __( 'Deleted cache files and recreated the cache directory.', 'surge' ),
+	];
+}
+
+/**
+ * Get install and health diagnostics for the admin UI.
+ *
+ * @return array<string, mixed>
+ */
+function install_diagnostics() {
+	$installed = get_option( 'surge_installed', false );
+	$wp_cache_enabled = defined( 'WP_CACHE' ) && WP_CACHE;
+	$advanced_cache_present = file_exists( WP_CONTENT_DIR . '/advanced-cache.php' );
+	$advanced_cache_owned = advanced_cache_is_owned();
+	$cache_dir_exists = file_exists( CACHE_DIR );
+	$cache_dir_writable = $cache_dir_exists && is_writable( CACHE_DIR );
+
+	$diagnostics = [
+		'code' => $installed,
+		'state' => 'good',
+		'title' => __( 'Page caching is enabled', 'surge' ),
+		'description' => __( 'Surge is installed correctly and page caching is available.', 'surge' ),
+		'wpCacheEnabled' => $wp_cache_enabled,
+		'advancedCachePresent' => $advanced_cache_present,
+		'advancedCacheOwned' => $advanced_cache_owned,
+		'cacheDirExists' => $cache_dir_exists,
+		'cacheDirWritable' => $cache_dir_writable,
+	];
+
+	if ( false === $installed || $installed > 1 ) {
+		$diagnostics['state'] = 'critical';
+		$diagnostics['title'] = __( 'Page caching is not installed correctly', 'surge' );
+		$diagnostics['description'] = __( 'Surge does not appear to be installed correctly. Try deactivating and activating the plugin again.', 'surge' );
+		return $diagnostics;
+	}
+
+	if ( 0 === (int) $installed ) {
+		$diagnostics['state'] = 'warning';
+		$diagnostics['title'] = __( 'Page caching is still being installed', 'surge' );
+		$diagnostics['description'] = __( 'Surge is still installing. If this does not resolve quickly, try toggling the plugin activation.', 'surge' );
+		return $diagnostics;
+	}
+
+	if ( ! $wp_cache_enabled ) {
+		$diagnostics['state'] = 'critical';
+		$diagnostics['title'] = __( 'WP_CACHE is disabled', 'surge' );
+		$diagnostics['description'] = __( 'Surge is installed, but caching is disabled because WP_CACHE is not enabled.', 'surge' );
+		return $diagnostics;
+	}
+
+	if ( ! $advanced_cache_present ) {
+		$diagnostics['state'] = 'critical';
+		$diagnostics['title'] = __( 'advanced-cache.php is missing', 'surge' );
+		$diagnostics['description'] = __( 'The advanced-cache drop-in is missing, so Surge cannot serve cached pages early.', 'surge' );
+		return $diagnostics;
+	}
+
+	if ( ! $advanced_cache_owned ) {
+		$diagnostics['state'] = 'critical';
+		$diagnostics['title'] = __( 'advanced-cache.php is not owned by Surge', 'surge' );
+		$diagnostics['description'] = __( 'The current advanced-cache drop-in does not appear to belong to Surge.', 'surge' );
+		return $diagnostics;
+	}
+
+	if ( ! $cache_dir_writable ) {
+		$diagnostics['state'] = 'critical';
+		$diagnostics['title'] = __( 'Cache directory is not writable', 'surge' );
+		$diagnostics['description'] = __( 'Surge cannot write cache files because the cache directory is missing or not writable.', 'surge' );
+	}
+
+	return $diagnostics;
+}
+
+/**
+ * Build a small config summary for the admin dashboard.
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function config_summary_items() {
+	$items = [];
+	$keys = [ 'ttl', 'ignore_cookies', 'ignore_query_vars', 'variants', 'events', 'fpassthru_alt' ];
+
+	foreach ( $keys as $key ) {
+		$value = config( $key );
+		$source = config_source( $key );
+		$label = strtoupper( $key );
+		$display = '';
+
+		switch ( $key ) {
+			case 'ttl':
+				$label = __( 'TTL', 'surge' );
+				$display = sprintf(
+					/* translators: %d number of seconds */
+					__( '%d seconds', 'surge' ),
+					(int) $value
+				);
+				break;
+			case 'ignore_cookies':
+				$label = __( 'Ignored cookies', 'surge' );
+				$display = empty( $value ) ? __( 'None', 'surge' ) : implode( ', ', $value );
+				break;
+			case 'ignore_query_vars':
+				$label = __( 'Ignored query vars', 'surge' );
+				$display = sprintf(
+					/* translators: %d number of query vars */
+					__( '%d entries', 'surge' ),
+					count( $value )
+				);
+				break;
+			case 'variants':
+				$label = __( 'Cache variants', 'surge' );
+				$display = empty( $value ) ? __( 'None', 'surge' ) : sprintf(
+					/* translators: %d number of variants */
+					__( '%d configured', 'surge' ),
+					count( $value )
+				);
+				break;
+			case 'events':
+				$label = __( 'Event callbacks', 'surge' );
+				$display = empty( $value ) ? __( 'None', 'surge' ) : sprintf(
+					/* translators: %d number of event types */
+					__( '%d configured', 'surge' ),
+					count( $value )
+				);
+				break;
+			case 'fpassthru_alt':
+				$label = __( 'Alternative passthru', 'surge' );
+				$display = $value ? __( 'Enabled', 'surge' ) : __( 'Disabled', 'surge' );
+				break;
+		}
+
+		$items[] = [
+			'key' => $key,
+			'label' => $label,
+			'value' => $value,
+			'displayValue' => $display,
+			'source' => $source,
+			'locked' => in_array( $source, [ 'constant', 'wp_cache_config' ], true ),
+		];
+	}
+
+	return $items;
+}
+
+/**
+ * Build the admin dashboard payload.
+ *
+ * @return array<string, mixed>
+ */
+function admin_dashboard_data() {
+	$diagnostics = install_diagnostics();
+	list( $size, $count ) = cache_stats();
+	$health_state = function( $value ) {
+		return $value ? 'success' : 'danger';
+	};
+	$ttl = (int) config( 'ttl' );
+	$ui_settings = ui_settings();
+	$ttl_source = config_source( 'ttl' );
+	$ttl_locked = in_array( $ttl_source, [ 'constant', 'wp_cache_config' ], true );
+	$ignore_query_vars = (array) config( 'ignore_query_vars' );
+	$ignore_query_vars_source = config_source( 'ignore_query_vars' );
+	$ignore_query_vars_locked = in_array( $ignore_query_vars_source, [ 'constant', 'wp_cache_config' ], true );
+	$ignore_cookies = (array) config( 'ignore_cookies' );
+	$ignore_cookies_source = config_source( 'ignore_cookies' );
+	$ignore_cookies_locked = in_array( $ignore_cookies_source, [ 'constant', 'wp_cache_config' ], true );
+
+	return [
+		'status' => [
+			'state' => $diagnostics['state'],
+			'title' => $diagnostics['title'],
+			'description' => $diagnostics['description'],
+		],
+		'summary' => [
+			'install' => $diagnostics['title'],
+			'cacheSize' => size_format( $size ),
+			'cacheCount' => $count,
+			'ttl' => sprintf(
+				/* translators: %d number of seconds */
+				__( '%d seconds', 'surge' ),
+				$ttl
+			),
+		],
+		'health' => [
+			[
+				'key' => 'wp_cache',
+				'label' => __( 'WP_CACHE enabled', 'surge' ),
+				'status' => $health_state( $diagnostics['wpCacheEnabled'] ),
+				'details' => '',
+			],
+			[
+				'key' => 'advanced_cache',
+				'label' => __( 'advanced-cache.php present', 'surge' ),
+				'status' => $health_state( $diagnostics['advancedCachePresent'] ),
+				'details' => '',
+			],
+			[
+				'key' => 'advanced_cache_owner',
+				'label' => __( 'advanced-cache.php owned by Surge', 'surge' ),
+				'status' => $health_state( $diagnostics['advancedCacheOwned'] ),
+				'details' => '',
+			],
+			[
+				'key' => 'cache_dir',
+				'label' => __( 'Cache directory writable', 'surge' ),
+				'status' => $health_state( $diagnostics['cacheDirWritable'] ),
+				'details' => '',
+			],
+		],
+		'cache' => [
+			'count' => $count,
+			'sizeBytes' => $size,
+			'sizeLabel' => size_format( $size ),
+			'ttl' => $ttl,
+		],
+		'config' => [
+			'items' => config_summary_items(),
+		],
+		'settings' => [
+			'fields' => [
+				[
+					'key' => 'ttl',
+					'label' => __( 'Cache TTL', 'surge' ),
+					'type' => 'number',
+					'min' => 1,
+					'max' => DAY_IN_SECONDS,
+					'step' => 1,
+					'description' => __( 'How long cached pages stay fresh before they expire.', 'surge' ),
+					'uiValue' => isset( $ui_settings['ttl'] ) ? (int) $ui_settings['ttl'] : null,
+					'effectiveValue' => $ttl,
+					'effectiveLabel' => sprintf(
+						/* translators: %d number of seconds */
+						__( '%d seconds', 'surge' ),
+						$ttl
+					),
+					'source' => $ttl_source,
+					'locked' => $ttl_locked,
+					'lockedMessage' => $ttl_locked
+						? __( 'This value is overridden by code-level configuration.', 'surge' )
+						: '',
+				],
+				[
+					'key' => 'extra_ignore_query_vars',
+					'label' => __( 'Additional ignored query vars', 'surge' ),
+					'type' => 'textarea',
+					'rows' => 5,
+					'description' => __( 'Add one query var per line to ignore extra tracking parameters beyond the built-in defaults.', 'surge' ),
+					'draftValue' => $ui_settings['extra_ignore_query_vars'] ?? [],
+					'uiValue' => $ui_settings['extra_ignore_query_vars'] ?? [],
+					'effectiveValue' => $ignore_query_vars,
+					'effectiveLabel' => sprintf(
+						/* translators: %d number of query vars */
+						__( '%d entries', 'surge' ),
+						count( $ignore_query_vars )
+					),
+					'source' => $ignore_query_vars_source,
+					'locked' => $ignore_query_vars_locked,
+					'lockedMessage' => $ignore_query_vars_locked
+						? __( 'This value is overridden by code-level configuration.', 'surge' )
+						: '',
+				],
+				[
+					'key' => 'extra_ignore_cookies',
+					'label' => __( 'Additional ignored cookies', 'surge' ),
+					'type' => 'textarea',
+					'rows' => 4,
+					'description' => __( 'Add one cookie name per line to extend the default anonymous-cookie rules.', 'surge' ),
+					'draftValue' => $ui_settings['extra_ignore_cookies'] ?? [],
+					'uiValue' => $ui_settings['extra_ignore_cookies'] ?? [],
+					'effectiveValue' => $ignore_cookies,
+					'effectiveLabel' => empty( $ignore_cookies )
+						? __( 'None', 'surge' )
+						: implode( ', ', $ignore_cookies ),
+					'source' => $ignore_cookies_source,
+					'locked' => $ignore_cookies_locked,
+					'lockedMessage' => $ignore_cookies_locked
+						? __( 'This value is overridden by code-level configuration.', 'surge' )
+						: '',
+				],
+			],
+		],
+		'endpoints' => [
+			'dashboard' => '/surge/v1/admin',
+			'flush' => '/surge/v1/admin/flush',
+			'flushDelete' => '/surge/v1/admin/flush?delete=1',
+			'reinstall' => '/surge/v1/admin/reinstall',
+			'settings' => '/surge/v1/admin/settings',
+		],
+	];
 }

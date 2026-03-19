@@ -1,0 +1,93 @@
+name: Surge Preview Release
+
+on:
+  push:
+    branches:
+      - trunk
+    paths:
+      - '.env.example'
+      - '.github/workflows/preview-release.yml'
+      - 'bin/**'
+      - 'build/**'
+      - 'client/**'
+      - 'composer.json'
+      - 'docker-compose.yml'
+      - 'include/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'readme.txt'
+      - 'surge.php'
+      - 'tests/**'
+      - 'uninstall.php'
+      - 'webpack.config.js'
+  workflow_dispatch:
+
+jobs:
+  preview-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP and Composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+
+      - name: Prepare environment
+        run: cp .env.example .env
+
+      - name: Run shell tests
+        run: composer test:shell
+
+      - name: Start WordPress services
+        run: composer dev:up
+
+      - name: Build preview ZIP
+        id: build
+        run: |
+          ZIP_PATH="$(composer plugin:build:preview | tail -n 1)"
+          ZIP_NAME="$(basename "$ZIP_PATH")"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          VERSION="$(sed -nE 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' surge.php | head -n 1)"
+          {
+            echo "zip_path=$ZIP_PATH"
+            echo "zip_name=$ZIP_NAME"
+            echo "short_sha=$SHORT_SHA"
+            echo "version=$VERSION"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install plugin from ZIP
+        run: composer plugin:install:zip "${{ steps.build.outputs.zip_path }}"
+
+      - name: Run smoke test
+        run: composer test:smoke
+
+      - name: Capture Docker logs
+        if: always()
+        run: |
+          mkdir -p .artifacts
+          docker compose logs --no-color > .artifacts/docker-compose.log || true
+
+      - name: Publish preview prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: preview-${{ steps.build.outputs.short_sha }}
+          name: Surge Preview ${{ steps.build.outputs.short_sha }}
+          prerelease: true
+          generate_release_notes: true
+          body: |
+            Preview build for commit `${{ github.sha }}` on `${{ github.ref_name }}`.
+
+            - Plugin version: `${{ steps.build.outputs.version }}`
+            - Artifact: `${{ steps.build.outputs.zip_name }}`
+            - Install: Download the ZIP and upload it through WordPress Admin or `wp plugin install`
+          files: ${{ steps.build.outputs.zip_path }}
+
+      - name: Stop services
+        if: always()
+        run: composer dev:down

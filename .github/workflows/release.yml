@@ -1,0 +1,83 @@
+name: Surge Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP and Composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+
+      - name: Prepare environment
+        run: cp .env.example .env
+
+      - name: Validate tag version
+        id: version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PLUGIN_VERSION="$(sed -nE 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' surge.php | head -n 1)"
+          STABLE_TAG="$(sed -nE 's/^Stable tag:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' readme.txt | head -n 1)"
+
+          if [[ "$TAG_VERSION" != "$PLUGIN_VERSION" ]]; then
+            echo "::error::Tag version $TAG_VERSION does not match surge.php version $PLUGIN_VERSION"
+            exit 1
+          fi
+
+          if [[ "$TAG_VERSION" != "$STABLE_TAG" ]]; then
+            echo "::error::Tag version $TAG_VERSION does not match readme.txt stable tag $STABLE_TAG"
+            exit 1
+          fi
+
+          echo "version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Run shell tests
+        run: composer test:shell
+
+      - name: Start WordPress services
+        run: composer dev:up
+
+      - name: Build stable ZIP
+        id: build
+        run: |
+          ZIP_PATH="$(composer plugin:build | tail -n 1)"
+          ZIP_NAME="$(basename "$ZIP_PATH")"
+          {
+            echo "zip_path=$ZIP_PATH"
+            echo "zip_name=$ZIP_NAME"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install plugin from ZIP
+        run: composer plugin:install:zip "${{ steps.build.outputs.zip_path }}"
+
+      - name: Run smoke test
+        run: composer test:smoke
+
+      - name: Capture Docker logs
+        if: always()
+        run: |
+          mkdir -p .artifacts
+          docker compose logs --no-color > .artifacts/docker-compose.log || true
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Surge v${{ steps.version.outputs.version }}
+          files: ${{ steps.build.outputs.zip_path }}
+          generate_release_notes: true
+
+      - name: Stop services
+        if: always()
+        run: composer dev:down

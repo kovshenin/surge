@@ -1,0 +1,17 @@
+{
+  "name": "tangible/surge-pro",
+  "description": "Local tooling for Surge plugin packaging and smoke testing",
+  "type": "project",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "dev:up": "bash bin/dev-up.sh",
+    "dev:down": "docker compose down",
+    "dev:reset": "docker compose down -v",
+    "plugin:build": "bash bin/build-plugin-zip.sh stable",
+    "plugin:build:preview": "bash bin/build-plugin-zip.sh preview",
+    "plugin:install:worktree": "bash bin/install-plugin-from-worktree.sh",
+    "plugin:install:zip": "bash bin/install-plugin-from-zip.sh",
+    "test:shell": "bash tests/run-shell-tests.sh",
+    "test:smoke": "bash bin/smoke-test.sh"
+  }
+}
