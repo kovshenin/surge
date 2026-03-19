@@ -13,6 +13,8 @@ include_once( __DIR__ . '/options.php' );
 
 const CACHE_DIR = WP_CONTENT_DIR . '/cache/surge';
 
+include_once( __DIR__ . '/observability.php' );
+
 /**
  * Get the default Surge configuration.
  *
@@ -186,8 +188,9 @@ function key() {
 	}
 
 	// Break the URL down.
-	$parsed = parse_url( 'http://example.org' . $_SERVER['REQUEST_URI'] );
-	$path = $parsed['path'];
+	$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '/';
+	$parsed = parse_url( 'http://example.org' . $request_uri );
+	$path = $parsed['path'] ?? '/';
 	$query = $parsed['query'] ?? '';
 	$query_vars = [];
 
@@ -477,7 +480,7 @@ function cache_stats_for_path( $fs, $path ) {
  *
  * @return bool
  */
-function persist_expire_flags( array $expire_flags ) {
+function persist_expire_flags( array $expire_flags, array $context = [] ) {
 	if ( empty( $expire_flags ) ) {
 		return true;
 	}
@@ -521,6 +524,7 @@ function persist_expire_flags( array $expire_flags ) {
 	fwrite( $f, '<?php exit; ?>' . wp_json_encode( $flags ) );
 	fclose( $f );
 
+	observability_log_invalidation_summary( $expire_flags, $context );
 	event( 'expire', [ 'flags' => array_values( $expire_flags ) ] );
 	return true;
 }
@@ -534,13 +538,24 @@ function persist_expire_flags( array $expire_flags ) {
  */
 function flush_cache_entries( $delete = false ) {
 	if ( ! $delete ) {
-		$persisted = persist_expire_flags( [ '/' ] );
+		$persisted = persist_expire_flags( [ '/' ], [
+			'trigger' => 'flush',
+			'scope' => 'path',
+		] );
+		$message = $persisted
+			? __( 'Marked existing cache entries as expired.', 'surge' )
+			: __( 'Could not mark cache entries as expired.', 'surge' );
+
+		if ( $persisted ) {
+			observability_log_admin_action( 'flush', $message, [
+				'mode' => 'expire',
+			] );
+		}
+
 		return [
 			'ok' => $persisted,
 			'mode' => 'expire',
-			'message' => $persisted
-				? __( 'Marked existing cache entries as expired.', 'surge' )
-				: __( 'Could not mark cache entries as expired.', 'surge' ),
+			'message' => $message,
 		];
 	}
 
@@ -564,6 +579,14 @@ function flush_cache_entries( $delete = false ) {
 			'message' => __( 'Cache files were deleted, but the cache directory could not be recreated.', 'surge' ),
 		];
 	}
+
+	observability_log_admin_action(
+		'flush-delete',
+		__( 'Deleted cache files and recreated the cache directory.', 'surge' ),
+		[
+			'mode' => 'delete',
+		]
+	);
 
 	return [
 		'ok' => true,
@@ -848,12 +871,15 @@ function admin_dashboard_data() {
 				],
 			],
 		],
+		'observability' => observability_dashboard_payload(),
 		'endpoints' => [
 			'dashboard' => '/surge/v1/admin',
 			'flush' => '/surge/v1/admin/flush',
 			'flushDelete' => '/surge/v1/admin/flush?delete=1',
 			'reinstall' => '/surge/v1/admin/reinstall',
 			'settings' => '/surge/v1/admin/settings',
+			'debugStart' => '/surge/v1/admin/debug/start',
+			'debugStop' => '/surge/v1/admin/debug/stop',
 		],
 	];
 }

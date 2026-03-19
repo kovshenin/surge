@@ -25,10 +25,13 @@ include_once( __DIR__ . '/common.php' );
  */
 $ob_callback = function( $contents ) {
 	$ttl = config( 'ttl' );
+	$reason = null;
 
 	if ( $ttl < 1 ) {
 		header( 'X-Cache: bypass' );
 		status( 'bypass' );
+		observability_request_reason( 'ttl_disabled' );
+		observability_log_current_request_sample();
 		return $contents;
 	}
 
@@ -47,12 +50,14 @@ $ob_callback = function( $contents ) {
 
 		if ( strtolower( $name ) == 'set-cookie' ) {
 			$skip = true;
+			$reason = 'set_cookie';
 			break;
 		}
 
 		if ( strtolower( $name ) == 'cache-control' ) {
 			if ( stripos( $value, 'no-cache' ) !== false || stripos( $value, 'max-age=0' ) !== false ) {
 				$skip = true;
+				$reason = 'cache_control_no_cache';
 				break;
 			}
 		}
@@ -60,23 +65,29 @@ $ob_callback = function( $contents ) {
 
 	if ( ! empty( $_SERVER['HTTP_AUTHORIZATION'] ) ) {
 		$skip = true;
+		$reason = 'auth_header';
 	}
 
 	if ( ! in_array( strtoupper( $_SERVER['REQUEST_METHOD'] ), [ 'GET', 'HEAD' ] ) ) {
 		$skip = true;
+		$reason = 'method_not_cacheable';
 	}
 
 	if ( ! in_array( http_response_code(), [ 200, 301, 302, 404 ] ) ) {
 		$skip = true;
+		$reason = 'status_not_cacheable';
 	}
 
 	if ( defined( 'DONOTCACHEPAGE' ) && DONOTCACHEPAGE ) {
 		$skip = true;
+		$reason = 'donotcachepage';
 	}
 
 	if ( $skip ) {
 		header( 'X-Cache: bypass' );
 		status( 'bypass' );
+		observability_request_reason( $reason ?: 'status_not_cacheable' );
+		observability_log_current_request_sample();
 		return $contents;
 	}
 
@@ -96,6 +107,13 @@ $ob_callback = function( $contents ) {
 	$level = substr( $cache_key, -2 );
 
 	if ( ! wp_mkdir_p( CACHE_DIR . "/{$level}/" ) ) {
+		header( 'X-Cache: bypass' );
+		status( 'bypass' );
+		observability_request_reason( 'cache_write_open_failed' );
+		observability_log_current_request_sample( [
+			'path' => $key['path'],
+			'cacheKey' => $cache_key,
+		] );
 		return $contents;
 	}
 
@@ -107,6 +125,11 @@ $ob_callback = function( $contents ) {
 	if ( false === $f ) {
 		header( 'X-Cache: bypass' );
 		status( 'bypass' );
+		observability_request_reason( 'cache_write_open_failed' );
+		observability_log_current_request_sample( [
+			'path' => $key['path'],
+			'cacheKey' => $cache_key,
+		] );
 		return $contents;
 	}
 
@@ -123,9 +146,21 @@ $ob_callback = function( $contents ) {
 		CACHE_DIR . "/{$level}/{$cache_key}.php" )
 	) {
 		unlink( CACHE_DIR . "/{$level}/{$cache_key}.{$hash}.php" );
+		header( 'X-Cache: bypass' );
+		status( 'bypass' );
+		observability_request_reason( 'cache_write_open_failed' );
+		observability_log_current_request_sample( [
+			'path' => $key['path'],
+			'cacheKey' => $cache_key,
+		] );
+		return $contents;
 	}
 
 	event( 'request', [ 'meta' => $meta, 'status' => status() ] );
+	observability_log_current_request_sample( [
+		'path' => $key['path'],
+		'cacheKey' => $cache_key,
+	] );
 	return $contents;
 };
 

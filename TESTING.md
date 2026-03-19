@@ -88,6 +88,9 @@ Recommended manual checks for `Settings > Surge`:
 - Keyboard navigation reaches the skip link, primary actions, status notices, and danger-zone controls in a sensible order
 - `Flush cache`, `Flush and delete files`, and `Reinstall drop-in` open designed confirmation UI with explicit consequence copy and action labels
 - Successful actions show notices and refresh cache metrics deterministically
+- Recent admin actions and invalidations are visible in the observability area after operator actions have occurred
+- Starting a timed debug session shows the active banner, selected duration, and remaining time, and stopping it returns the page to derived-only mode
+- Request samples appear only while debug capture is active and stop updating once the session ends or expires
 - The layout remains usable with the admin sidebar expanded, collapsed, and at narrower content widths
 
 ## Smoke Coverage
@@ -99,6 +102,9 @@ The smoke test verifies:
 - a first anonymous request returns `X-Cache: miss`
 - a second anonymous request returns `X-Cache: hit`
 - cache files are created on disk
+- timed debug capture creates `wp-content/cache/surge/observability/debug-session.json.php`
+- `wp-content/cache/surge/observability/requests.log.php` records samples only while debug capture is active
+- `wp-content/cache/surge/observability/admin.log.php` and `wp-content/cache/surge/observability/invalidations.log.php` are populated by operator flush actions
 - `wp surge flush --delete` removes cached files
 
 ## CI And Releases

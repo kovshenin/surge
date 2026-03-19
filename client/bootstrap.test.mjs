@@ -68,6 +68,8 @@ test('getApiPaths uses endpoint overrides when bootstrap data provides them', ()
       flushDelete: '/custom/delete',
       reinstall: '/custom/reinstall',
       settings: '/custom/settings',
+      debugStart: '/surge/v1/admin/debug/start',
+      debugStop: '/surge/v1/admin/debug/stop',
     }
   );
 });
@@ -79,7 +81,29 @@ test('getApiPaths falls back to Surge REST defaults for malformed bootstrap data
     flushDelete: '/surge/v1/admin/flush?delete=1',
     reinstall: '/surge/v1/admin/reinstall',
     settings: '/surge/v1/admin/settings',
+    debugStart: '/surge/v1/admin/debug/start',
+    debugStop: '/surge/v1/admin/debug/stop',
   });
+});
+
+test('getApiPaths includes debug endpoint overrides when provided', () => {
+  assert.deepEqual(
+    getApiPaths({
+      endpoints: {
+        debugStart: '/custom/debug/start',
+        debugStop: '/custom/debug/stop',
+      },
+    }),
+    {
+      dashboard: '/surge/v1/admin',
+      flush: '/surge/v1/admin/flush',
+      flushDelete: '/surge/v1/admin/flush?delete=1',
+      reinstall: '/surge/v1/admin/reinstall',
+      settings: '/surge/v1/admin/settings',
+      debugStart: '/custom/debug/start',
+      debugStop: '/custom/debug/stop',
+    }
+  );
 });
 
 test('formatApiError prefers explicit message fields and degrades predictably', () => {

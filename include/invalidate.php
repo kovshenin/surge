@@ -132,6 +132,7 @@ add_action( 'shutdown', function() {
 		'_core_updated_successfully',
 		'automatic_updates_complete',
 	];
+	$trigger = 'runtime';
 
 	$expire_flag = is_multisite()
 		? sprintf( 'network:%d:%d', get_current_network_id(), get_current_blog_id() )
@@ -140,6 +141,7 @@ add_action( 'shutdown', function() {
 	foreach ( $flush_actions as $action ) {
 		if ( did_action( $action ) ) {
 			expire( $expire_flag );
+			$trigger = $action;
 			break;
 		}
 	}
@@ -148,6 +150,7 @@ add_action( 'shutdown', function() {
 	foreach ( $ms_flush_actions as $action ) {
 		if ( did_action( $action ) ) {
 			expire( '/' );
+			$trigger = $action;
 			break;
 		}
 	}
@@ -157,48 +160,9 @@ add_action( 'shutdown', function() {
 		return;
 	}
 
-	$flags = null;
-	$path = CACHE_DIR . '/flags.json.php';
-	$exists = file_exists( $path );
-	$mode = $exists ? 'r+' : 'w+';
-
-	// Make sure cache dir exists.
-	if ( ! $exists && ! wp_mkdir_p( CACHE_DIR ) ) {
-		return;
-	}
-
-	$f = fopen( $path, $mode );
-	$length = filesize( $path );
-
-	flock( $f, LOCK_EX );
-
-	if ( $length ) {
-		$flags = fread( $f, $length );
-		$flags = substr( $flags, strlen( '<?php exit; ?>' ) );
-		$flags = json_decode( $flags, true );
-	}
-
-	if ( ! $flags ) {
-		$flags = [];
-	}
-
-	foreach ( $expire as $flag ) {
-		$flags[ $flag ] = time();
-	}
-
-	if ( ! wp_mkdir_p( CACHE_DIR ) ) {
-		return;
-	}
-
-	if ( $length ) {
-		ftruncate( $f, 0 );
-		rewind( $f );
-	}
-
-	fwrite( $f, '<?php exit; ?>' . json_encode( $flags ) );
-	fclose( $f );
-
-	event( 'expire', [ 'flags' => $expire ] );
+	persist_expire_flags( $expire, [
+		'trigger' => $trigger,
+	] );
 } );
 
 $expire_feeds = function() { expire( 'feed:' . get_current_blog_id() ); };

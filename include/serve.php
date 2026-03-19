@@ -20,6 +20,7 @@ header( 'X-Cache: miss' );
 status( 'miss' );
 $cache_key = md5( json_encode( key() ) );
 $level = substr( $cache_key, -2 );
+observability_request_reason( 'cache_file_missing' );
 
 $filename = CACHE_DIR . "/{$level}/{$cache_key}.php";
 if ( ! file_exists( $filename ) ) {
@@ -36,6 +37,7 @@ if ( ! $meta ) {
 if ( $meta['expires'] < time() ) {
 	header( 'X-Cache: expired' );
 	status( 'expired' );
+	observability_request_reason( 'expired_by_ttl' );
 	fclose( $f );
 	return;
 }
@@ -57,6 +59,7 @@ if ( $flags && ! empty( $meta['flags'] ) ) {
 			if ( substr( $meta['path'], 0, strlen( $flag ) ) === $flag ) {
 				header( 'X-Cache: expired' );
 				status( 'expired' );
+				observability_request_reason( 'expired_by_flag' );
 				fclose( $f );
 				return;
 			}
@@ -68,6 +71,7 @@ if ( $flags && ! empty( $meta['flags'] ) ) {
 		if ( in_array( $flag, $meta['flags'] ) ) {
 			header( 'X-Cache: expired' );
 			status( 'expired' );
+			observability_request_reason( 'expired_by_flag' );
 			fclose( $f );
 			return;
 		}
@@ -84,7 +88,13 @@ foreach ( $meta['headers'] as $name => $values ) {
 }
 
 header( 'X-Cache: hit' );
-event( 'request', [ 'meta' => $meta, 'status' => status( 'hit' ) ] );
+status( 'hit' );
+observability_request_reason( 'hit' );
+observability_log_current_request_sample( [
+	'path' => $meta['path'] ?? key()['path'],
+	'cacheKey' => $cache_key,
+] );
+event( 'request', [ 'meta' => $meta, 'status' => status() ] );
 
 if ( config( 'fpassthru_alt' ) ) {
 	// Less efficient but works on hosts that disable fpassthru.

@@ -10,7 +10,14 @@ import {
   dismissNotice,
   getActionDefinition,
   getChecklist,
+  getDebugSessionState,
   getConfigItems,
+  getObservabilitySummaryItems,
+  getRecentAdminActions,
+  getRecentInvalidations,
+  getRequestSampleOutcomeLabel,
+  getRequestSampleReasonLabel,
+  getRequestSamples,
   getSettingsFields,
   getStatusTheme,
   getSummaryValue,
@@ -19,6 +26,8 @@ import {
   resolveActionSuccessState,
   unwrapDashboardResponse,
 } from './model.mjs';
+import { DebugSessionControls } from './DebugSessionControls.js';
+import { ObservabilityFeed } from './ObservabilityFeed.js';
 import { SettingsForm } from './SettingsForm.js';
 
 function NoticeStack({ notices, onDismiss }) {
@@ -106,6 +115,23 @@ async function requestSettingsSave(paths, settings) {
   });
 }
 
+async function requestDebugSession(paths, mode, duration) {
+  if (mode === 'start') {
+    return apiFetch({
+      path: paths.debugStart,
+      method: 'POST',
+      data: {
+        duration,
+      },
+    });
+  }
+
+  return apiFetch({
+    path: paths.debugStop,
+    method: 'POST',
+  });
+}
+
 export function App({ bootstrap }) {
   const initialView = useMemo(() => deriveInitialView(bootstrap.initialData), [bootstrap.initialData]);
   const apiPaths = useMemo(() => getApiPaths(bootstrap.initialData), [bootstrap.initialData]);
@@ -117,6 +143,8 @@ export function App({ bootstrap }) {
   const [settingsDraft, setSettingsDraft] = useState(() => createSettingsDraft(getSettingsFields(initialView.data)));
   const [isSettingsDirty, setIsSettingsDirty] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [debugBusyAction, setDebugBusyAction] = useState(null);
+  const [selectedDebugDuration, setSelectedDebugDuration] = useState('1h');
 
   useEffect(() => {
     setView(initialView);
@@ -125,6 +153,11 @@ export function App({ bootstrap }) {
   const dashboardData = view.status === 'ready' ? view.data : view.data ?? bootstrap.initialData ?? null;
   const checklist = getChecklist(dashboardData);
   const configItems = getConfigItems(dashboardData);
+  const observabilitySummary = getObservabilitySummaryItems(dashboardData);
+  const recentAdminActions = getRecentAdminActions(dashboardData);
+  const recentInvalidations = getRecentInvalidations(dashboardData);
+  const requestSamples = getRequestSamples(dashboardData);
+  const debugSession = getDebugSessionState(dashboardData);
   const settingsFields = getSettingsFields(dashboardData);
 
   useEffect(() => {
@@ -133,12 +166,27 @@ export function App({ bootstrap }) {
     }
   }, [settingsFields, isSettingsDirty]);
 
+  useEffect(() => {
+    const availableDurations =
+      Array.isArray(debugSession.availableDurations) && debugSession.availableDurations.length > 0
+        ? debugSession.availableDurations
+        : ['1h', '3h', '12h', '24h', '3d'];
+
+    if (!availableDurations.includes(selectedDebugDuration)) {
+      setSelectedDebugDuration(
+        debugSession.duration && availableDurations.includes(debugSession.duration)
+          ? debugSession.duration
+          : availableDurations[0]
+      );
+    }
+  }, [debugSession.availableDurations, debugSession.duration, selectedDebugDuration]);
+
   const pushNotice = (notice) => {
     setNotices((current) => prependNotice(current, notice));
   };
 
   const refresh = async () => {
-    if (isRefreshing || busyAction || isSavingSettings) {
+    if (isRefreshing || busyAction || isSavingSettings || debugBusyAction) {
       return;
     }
 
@@ -166,7 +214,7 @@ export function App({ bootstrap }) {
   };
 
   const openAction = (key) => {
-    if (busyAction || isRefreshing || isSavingSettings) {
+    if (busyAction || isRefreshing || isSavingSettings || debugBusyAction) {
       return;
     }
 
@@ -229,7 +277,7 @@ export function App({ bootstrap }) {
   const handleSettingsSubmit = async (event) => {
     event.preventDefault();
 
-    if (isSavingSettings || busyAction || isRefreshing) {
+    if (isSavingSettings || busyAction || isRefreshing || debugBusyAction) {
       return;
     }
 
@@ -266,10 +314,88 @@ export function App({ bootstrap }) {
     }
   };
 
+  const handleDebugDurationChange = (duration) => {
+    setSelectedDebugDuration(duration);
+  };
+
+  const handleDebugStart = async (duration) => {
+    if (debugBusyAction || busyAction || isRefreshing || isSavingSettings || debugSession.active) {
+      return;
+    }
+
+    setDebugBusyAction('start');
+    try {
+      const response = await requestDebugSession(apiPaths, 'start', duration);
+      const nextState = resolveActionSuccessState({
+        response,
+        action: {
+          title: 'Start debug capture',
+        },
+        notices: [],
+      });
+
+      setView(nextState.view);
+      setNotices((current) =>
+        resolveActionSuccessState({
+          response,
+          action: {
+            title: 'Start debug capture',
+          },
+          notices: current,
+        }).notices
+      );
+    } catch (error) {
+      pushNotice({
+        theme: 'danger',
+        title: 'Start debug capture failed',
+        message: formatApiError(error),
+      });
+    } finally {
+      setDebugBusyAction(null);
+    }
+  };
+
+  const handleDebugStop = async () => {
+    if (debugBusyAction || busyAction || isRefreshing || isSavingSettings || !debugSession.active) {
+      return;
+    }
+
+    setDebugBusyAction('stop');
+    try {
+      const response = await requestDebugSession(apiPaths, 'stop');
+      const nextState = resolveActionSuccessState({
+        response,
+        action: {
+          title: 'Stop debug capture',
+        },
+        notices: [],
+      });
+
+      setView(nextState.view);
+      setNotices((current) =>
+        resolveActionSuccessState({
+          response,
+          action: {
+            title: 'Stop debug capture',
+          },
+          notices: current,
+        }).notices
+      );
+    } catch (error) {
+      pushNotice({
+        theme: 'danger',
+        title: 'Stop debug capture failed',
+        message: formatApiError(error),
+      });
+    } finally {
+      setDebugBusyAction(null);
+    }
+  };
+
   const statusTitle = dashboardData?.status?.title || 'Dashboard status';
   const statusDescription = dashboardData?.status?.description || '';
   const statusTheme = getStatusTheme(dashboardData?.status?.state);
-  const actionsDisabled = isRefreshing || Boolean(busyAction) || isSavingSettings;
+  const actionsDisabled = isRefreshing || Boolean(busyAction) || isSavingSettings || Boolean(debugBusyAction);
 
   return (
     <div className="surge-admin-shell">
@@ -355,7 +481,30 @@ export function App({ bootstrap }) {
             </Card.Body>
           </Card>
 
-          <Card elevated className="surge-panel">
+          <Card elevated className="surge-panel surge-panel--observability-summary">
+            <Card.Head>
+              <h2>Observability summary</h2>
+            </Card.Head>
+            <Card.Body>
+              <div className="surge-observability-summary">
+                {observabilitySummary.length === 0 ? (
+                  <div className="surge-empty-state">
+                    <strong>No observability summary yet</strong>
+                    <p>Recent admin actions and invalidations will appear here once the plugin is used.</p>
+                  </div>
+                ) : (
+                  observabilitySummary.map((item) => (
+                    <article key={item.key}>
+                      <span>{item.label}</span>
+                      <strong>{item.value}</strong>
+                    </article>
+                  ))
+                )}
+              </div>
+            </Card.Body>
+          </Card>
+
+          <Card elevated className="surge-panel surge-panel--health">
             <Card.Head>
               <h2>Health checklist</h2>
             </Card.Head>
@@ -371,7 +520,118 @@ export function App({ bootstrap }) {
             </Card.Body>
           </Card>
 
-          <Card elevated className="surge-panel">
+          <DebugSessionControls
+            session={debugSession}
+            selectedDuration={selectedDebugDuration}
+            onDurationChange={handleDebugDurationChange}
+            onStart={handleDebugStart}
+            onStop={handleDebugStop}
+            busyAction={debugBusyAction}
+            disabled={actionsDisabled}
+          />
+
+          <ObservabilityFeed
+            title="Recent admin actions"
+            items={recentAdminActions.items}
+            emptyTitle={recentAdminActions.emptyTitle}
+            emptyDescription={recentAdminActions.emptyDescription}
+            className="surge-panel--admin-actions"
+            getItemKey={(item, index) => `${item.logged_at || 'admin'}-${item.action || index}`}
+            renderItem={(item) => (
+              <div className="surge-feed__content">
+                <div className="surge-feed__header">
+                  <strong>{item.action || 'Action'}</strong>
+                  <span>{item.logged_at || 'recently'}</span>
+                </div>
+                <p className="surge-feed__summary">{item.summary || 'No summary provided.'}</p>
+                <dl className="surge-feed__meta">
+                  {item.mode ? (
+                    <div>
+                      <dt>Mode</dt>
+                      <dd>{item.mode}</dd>
+                    </div>
+                  ) : null}
+                  {item.userId ? (
+                    <div>
+                      <dt>User</dt>
+                      <dd>{item.userId}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </div>
+            )}
+          />
+
+          <ObservabilityFeed
+            title="Recent invalidations"
+            items={recentInvalidations.items}
+            emptyTitle={recentInvalidations.emptyTitle}
+            emptyDescription={recentInvalidations.emptyDescription}
+            className="surge-panel--invalidations"
+            getItemKey={(item, index) => `${item.logged_at || 'invalid'}-${item.scope || index}`}
+            renderItem={(item) => (
+              <div className="surge-feed__content">
+                <div className="surge-feed__header">
+                  <strong>{item.scope === 'path' ? 'Path invalidation' : 'Semantic invalidation'}</strong>
+                  <span>{item.logged_at || 'recently'}</span>
+                </div>
+                <p className="surge-feed__summary">
+                  {(item.flagCount || 0) === 1 ? '1 flag expired' : `${item.flagCount || 0} flags expired`}
+                  {Array.isArray(item.flags) && item.flags.length ? `: ${item.flags.slice(0, 4).join(', ')}` : ''}
+                </p>
+                <dl className="surge-feed__meta">
+                  {item.scope ? (
+                    <div>
+                      <dt>Scope</dt>
+                      <dd>{item.scope}</dd>
+                    </div>
+                  ) : null}
+                  {item.trigger ? (
+                    <div>
+                      <dt>Trigger</dt>
+                      <dd>{item.trigger}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </div>
+            )}
+          />
+
+          <ObservabilityFeed
+            title="Recent request samples"
+            items={requestSamples.items}
+            emptyTitle={requestSamples.emptyTitle}
+            emptyDescription={requestSamples.emptyDescription}
+            className="surge-panel--request-samples"
+            getItemKey={(item, index) => `${item.logged_at || 'request'}-${item.cacheKey || index}`}
+            renderItem={(item) => (
+              <div className="surge-feed__content">
+                <div className="surge-feed__header">
+                  <span className={`surge-feed__badge surge-feed__badge--${item.outcome || 'unknown'}`}>
+                    {getRequestSampleOutcomeLabel(item.outcome)}
+                  </span>
+                  <span>{item.logged_at || 'recently'}</span>
+                </div>
+                <p className="surge-feed__summary">{getRequestSampleReasonLabel(item.reason)}</p>
+                <dl className="surge-feed__meta">
+                  {item.path ? (
+                    <div>
+                      <dt>Path</dt>
+                      <dd>{item.path}</dd>
+                    </div>
+                  ) : null}
+                  {item.cacheKey ? (
+                    <div>
+                      <dt>Cache key</dt>
+                      <dd>{item.cacheKey}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </div>
+            )}
+          />
+
+          <Card elevated className="surge-panel surge-panel--config">
             <Card.Head>
               <h2>Effective configuration</h2>
             </Card.Head>
@@ -402,7 +662,7 @@ export function App({ bootstrap }) {
             onSubmit={handleSettingsSubmit}
           />
 
-          <Card elevated className="surge-panel">
+          <Card elevated className="surge-panel surge-panel--danger">
             <Card.Head>
               <h2>Danger zone</h2>
             </Card.Head>
@@ -433,7 +693,7 @@ export function App({ bootstrap }) {
             </Card.Body>
           </Card>
 
-          <Card elevated className="surge-panel">
+          <Card elevated className="surge-panel surge-panel--help">
             <Card.Head>
               <h2>How this works</h2>
             </Card.Head>
@@ -446,6 +706,10 @@ export function App({ bootstrap }) {
                 <p>
                   Use soft flush to expire existing entries, delete flush to remove cached files,
                   and reinstall when the drop-in or install state needs repair.
+                </p>
+                <p>
+                  Observability stays derived by default. Timed request capture only appears when you
+                  deliberately enable a debug session.
                 </p>
               </div>
             </Card.Body>

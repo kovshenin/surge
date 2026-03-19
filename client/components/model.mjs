@@ -2,6 +2,36 @@ function isObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
+function isString(value) {
+  return typeof value === 'string' && value.length > 0;
+}
+
+function normalizeFeedSlice(slice, defaults) {
+  if (!isObject(slice)) {
+    return {
+      items: [],
+      emptyTitle: defaults.emptyTitle,
+      emptyDescription: defaults.emptyDescription,
+    };
+  }
+
+  return {
+    items: Array.isArray(slice.items) ? slice.items : [],
+    emptyTitle: isString(slice.emptyTitle) ? slice.emptyTitle : defaults.emptyTitle,
+    emptyDescription: isString(slice.emptyDescription)
+      ? slice.emptyDescription
+      : defaults.emptyDescription,
+  };
+}
+
+function titleCaseToken(token) {
+  return token
+    .split(/[_-]+/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 export const ACTION_DEFINITIONS = Object.freeze({
   flush: Object.freeze({
     key: 'flush',
@@ -38,6 +68,91 @@ function createNoticeId() {
 
 export function getActionDefinition(key) {
   return ACTION_DEFINITIONS[key] ?? null;
+}
+
+export function getObservabilitySummaryItems(data) {
+  const items = data?.observability?.summary;
+  return Array.isArray(items) ? items : [];
+}
+
+export function getRecentAdminActions(data) {
+  return normalizeFeedSlice(data?.observability?.adminActions, {
+    emptyTitle: 'No admin actions yet',
+    emptyDescription: 'Flush, reinstall, and settings saves will appear here.',
+  });
+}
+
+export function getRecentInvalidations(data) {
+  return normalizeFeedSlice(data?.observability?.invalidations, {
+    emptyTitle: 'No invalidations yet',
+    emptyDescription: 'Expired flags are summarized here after they are written.',
+  });
+}
+
+export function getRequestSamples(data) {
+  const slice = normalizeFeedSlice(data?.observability?.requestSamples, {
+    emptyTitle: 'Debug capture is inactive',
+    emptyDescription: 'Start a timed debug session to capture recent request outcomes.',
+  });
+
+  return {
+    active: Boolean(data?.observability?.requestSamples?.active),
+    ...slice,
+  };
+}
+
+export function getDebugSessionState(data) {
+  const session = isObject(data?.observability?.debugSession) ? data.observability.debugSession : {};
+
+  return {
+    active: Boolean(session.active),
+    duration: isString(session.duration) ? session.duration : null,
+    enabledAt: typeof session.enabledAt === 'number' ? session.enabledAt : null,
+    enabledAtIso: isString(session.enabledAtIso) ? session.enabledAtIso : null,
+    expiresAt: typeof session.expiresAt === 'number' ? session.expiresAt : null,
+    expiresAtIso: isString(session.expiresAtIso) ? session.expiresAtIso : null,
+    remainingSeconds: typeof session.remainingSeconds === 'number' ? session.remainingSeconds : 0,
+    availableDurations: Array.isArray(session.availableDurations)
+      ? session.availableDurations.filter((value) => isString(value))
+      : [],
+  };
+}
+
+export function getRequestSampleOutcomeLabel(outcome) {
+  const labels = {
+    hit: 'Cache hit',
+    bypass: 'Cache bypass',
+    expired: 'Cache expired',
+  };
+
+  if (isString(labels[outcome])) {
+    return labels[outcome];
+  }
+
+  return titleCaseToken(String(outcome ?? 'request'));
+}
+
+export function getRequestSampleReasonLabel(reason) {
+  const labels = {
+    ttl_disabled: 'TTL disabled',
+    set_cookie: 'Set-Cookie header',
+    cache_control_no_cache: 'Cache-Control no-cache',
+    auth_header: 'Authorization header present',
+    method_not_cacheable: 'Request method not cacheable',
+    status_not_cacheable: 'Response status not cacheable',
+    donotcachepage: 'DONOTCACHEPAGE set',
+    cache_write_open_failed: 'Cache write failed',
+    cache_file_missing: 'Cache file missing',
+    expired_by_ttl: 'Expired by TTL',
+    expired_by_flag: 'Expired by flag',
+    hit: 'Cache hit',
+  };
+
+  if (isString(labels[reason])) {
+    return labels[reason];
+  }
+
+  return titleCaseToken(String(reason ?? 'unknown'));
 }
 
 export function unwrapDashboardResponse(response) {

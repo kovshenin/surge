@@ -74,6 +74,14 @@ export function getApiPaths(initialData) {
       typeof endpoints.settings === 'string'
         ? endpoints.settings
         : '/surge/v1/admin/settings',
+    debugStart:
+      typeof endpoints.debugStart === 'string'
+        ? endpoints.debugStart
+        : '/surge/v1/admin/debug/start',
+    debugStop:
+      typeof endpoints.debugStop === 'string'
+        ? endpoints.debugStop
+        : '/surge/v1/admin/debug/stop',
   };
 }
 

@@ -15,7 +15,7 @@
 namespace Surge;
 
 // Attempt to cache this request if cache is on.
-if ( defined( 'WP_CACHE' ) && WP_CACHE ) {
+if ( defined( 'WP_CACHE' ) && WP_CACHE && ! ( defined( 'WP_CLI' ) && WP_CLI ) ) {
 	include_once( __DIR__ . '/include/cache.php' );
 }
 

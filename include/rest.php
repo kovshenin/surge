@@ -41,6 +41,25 @@ add_action( 'rest_api_init', function() {
 		'callback' => __NAMESPACE__ . '\\rest_update_settings',
 		'permission_callback' => __NAMESPACE__ . '\\rest_admin_permissions',
 	] );
+
+	register_rest_route( 'surge/v1', '/admin/debug/start', [
+		'methods' => \WP_REST_Server::CREATABLE,
+		'callback' => __NAMESPACE__ . '\\rest_start_debug_session',
+		'permission_callback' => __NAMESPACE__ . '\\rest_admin_permissions',
+		'args' => [
+			'duration' => [
+				'type' => 'string',
+				'required' => true,
+				'enum' => observability_allowed_debug_durations(),
+			],
+		],
+	] );
+
+	register_rest_route( 'surge/v1', '/admin/debug/stop', [
+		'methods' => \WP_REST_Server::CREATABLE,
+		'callback' => __NAMESPACE__ . '\\rest_stop_debug_session',
+		'permission_callback' => __NAMESPACE__ . '\\rest_admin_permissions',
+	] );
 } );
 
 /**
@@ -137,6 +156,11 @@ function rest_reinstall_cache() {
 		], 500 );
 	}
 
+	observability_log_admin_action(
+		'reinstall',
+		__( 'Surge install files were refreshed.', 'surge' )
+	);
+
 	return rest_admin_response(
 		[
 			'action' => [
@@ -165,6 +189,13 @@ function rest_update_settings( $request ) {
 
 	save_ui_settings( $settings );
 	reset_config_snapshot();
+	observability_log_admin_action(
+		'save-settings',
+		__( 'Surge settings were saved.', 'surge' ),
+		[
+			'settingKeys' => array_values( array_keys( $settings ) ),
+		]
+	);
 
 	return rest_admin_response(
 		[
@@ -174,5 +205,57 @@ function rest_update_settings( $request ) {
 		],
 		'success',
 		__( 'Surge settings were saved.', 'surge' )
+	);
+}
+
+/**
+ * Start a timed debug session.
+ *
+ * @param \WP_REST_Request $request Request instance.
+ *
+ * @return \WP_REST_Response
+ */
+function rest_start_debug_session( $request ) {
+	$duration = (string) $request->get_param( 'duration' );
+	$session = observability_start_debug_session( $duration );
+
+	if ( empty( $session['active'] ) ) {
+		return new \WP_REST_Response( [
+			'data' => admin_dashboard_data(),
+			'notice' => [
+				'type' => 'error',
+				'message' => __( 'The debug session could not be started.', 'surge' ),
+			],
+		], 500 );
+	}
+
+	return rest_admin_response(
+		[
+			'action' => [
+				'name' => 'debug-start',
+				'duration' => $duration,
+			],
+		],
+		'success',
+		__( 'Timed debug capture is now active.', 'surge' )
+	);
+}
+
+/**
+ * Stop a timed debug session early.
+ *
+ * @return \WP_REST_Response
+ */
+function rest_stop_debug_session() {
+	observability_stop_debug_session();
+
+	return rest_admin_response(
+		[
+			'action' => [
+				'name' => 'debug-stop',
+			],
+		],
+		'success',
+		__( 'Timed debug capture was stopped.', 'surge' )
 	);
 }
