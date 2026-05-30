@@ -86,13 +86,15 @@ foreach ( $meta['headers'] as $name => $values ) {
 header( 'X-Cache: hit' );
 event( 'request', [ 'meta' => $meta, 'status' => status( 'hit' ) ] );
 
-if ( config( 'fpassthru_alt' ) ) {
-	// Less efficient but works on hosts that disable fpassthru.
-	// Buffers the entire response in memory.
-	echo stream_get_contents( $f );
-} else {
-	// Pass the remaining bytes to the output.
-	fpassthru( $f );
+if ( 'GET' === strtoupper( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
+	if ( config( 'fpassthru_alt' ) ) {
+		// Less efficient but works on hosts that disable fpassthru.
+		// Buffers the entire response in memory.
+		echo stream_get_contents( $f );
+	} else {
+		// Pass the remaining bytes to the output.
+		fpassthru( $f );
+	}
 }
 
 fclose( $f );
