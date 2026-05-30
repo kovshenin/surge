@@ -51,7 +51,12 @@ $ob_callback = function( $contents ) {
 		}
 
 		if ( strtolower( $name ) == 'cache-control' ) {
-			if ( stripos( $value, 'no-cache' ) !== false || stripos( $value, 'max-age=0' ) !== false ) {
+			if (
+				stripos( $value, 'no-cache' ) !== false ||
+				stripos( $value, 'no-store' ) !== false ||
+				stripos( $value, 'private' ) !== false ||
+				stripos( $value, 'max-age=0' ) !== false
+			) {
 				$skip = true;
 				break;
 			}
