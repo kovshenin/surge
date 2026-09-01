@@ -42,6 +42,7 @@ $ob_callback = function( $contents ) {
 	}
 
 	if ( isset( $error['type'] ) && in_array( $error['type'], $fatal_error_types, true ) ) {
+		header( 'X-Cache: bypass' );
 		status( 'bypass' );
 		return $contents;
 	}
