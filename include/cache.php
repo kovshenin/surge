@@ -25,9 +25,23 @@ include_once( __DIR__ . '/common.php' );
  */
 $ob_callback = function( $contents ) {
 	$ttl = config( 'ttl' );
+	$error = error_get_last();
+	$fatal_error_types = [
+		E_ERROR,
+		E_PARSE,
+		E_CORE_ERROR,
+		E_COMPILE_ERROR,
+		E_USER_ERROR,
+		E_RECOVERABLE_ERROR,
+	];
 
 	if ( $ttl < 1 ) {
 		header( 'X-Cache: bypass' );
+		status( 'bypass' );
+		return $contents;
+	}
+
+	if ( isset( $error['type'] ) && in_array( $error['type'], $fatal_error_types, true ) ) {
 		status( 'bypass' );
 		return $contents;
 	}
